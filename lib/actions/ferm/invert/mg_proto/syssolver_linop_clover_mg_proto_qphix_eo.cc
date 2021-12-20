@@ -70,6 +70,14 @@ namespace Chroma
 
 
 		  mg_pointer = MGProtoHelpersQPhiX::getMGPreconditionerEO(subspaceId);
+                  //Here what I will do is if the same subspaceID is found, then modify the linear operators
+                  //and reuse the null vectors. I think that only the fine level null vectors can be reused though
+                  //what a pain
+                  if (mg_pointer!=nullptr && invParam.reuse_subspace){
+			//modify the preconditioner here
+                        MGProtoHelpersQPhiX::modifyMGPreconditionerEO(mg_pointer, invParam, state->getLinks());
+                        mg_pointer = MGProtoHelpersQPhiX::getMGPreconditionerEO(subspaceId);
+}
 		  if ( ! mg_pointer ) {
 			  QDPIO::cout << "EO MG Preconditioner not found in Named Obj. Creating" << std::endl;
 

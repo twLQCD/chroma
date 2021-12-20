@@ -120,6 +120,7 @@ MGProtoSolverParams::MGProtoSolverParams(XMLReader& xml, const std::string& path
 	read( paramtop, "VCycleVerboseP", VCycleVerboseP, MGLevels-1);
 
 	read( paramtop, "SubspaceId", SubspaceId);
+	read( paramtop, "Reuse_Subspace", reuse_subspace);
 
 	}
 	catch( const std::string& e) {
@@ -177,6 +178,7 @@ void write(XMLWriter& xml, const std::string& path, const MGProtoSolverParams& p
 	write(xml, "VCycleRsdTarget", p.VCycleMaxIters);
 	write(xml, "VCycleVerboseP", p.VCycleVerboseP);
 	write(xml, "SubspaceId", p.SubspaceId);
+	write(xml, "Reuse_Subspace", p.reuse_subspace);
 
 }
 

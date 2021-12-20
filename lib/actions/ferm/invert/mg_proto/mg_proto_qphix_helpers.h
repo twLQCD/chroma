@@ -40,7 +40,6 @@ struct MGPreconditionerT
 using MGPreconditioner = MGPreconditionerT<MG::QPhiXMultigridLevels, MG::VCycleRecursiveQPhiX,MG::QPhiXWilsonCloverLinearOperator, MG::QPhiXWilsonCloverLinearOperatorF>;
 using MGPreconditionerEO = MGPreconditionerT<MG::QPhiXMultigridLevelsEO, MG::VCycleRecursiveQPhiXEO2,MG::QPhiXWilsonCloverEOLinearOperator, MG::QPhiXWilsonCloverEOLinearOperatorF>;
 
-
 // for testing
 template<typename MGProtoParams>
 std::shared_ptr<MG::QPhiXWilsonCloverLinearOperator>
@@ -54,6 +53,7 @@ createFineLinOpF( const MGProtoParams& params, const multi1d<LatticeColorMatrix>
 
 void createMGPreconditioner(const MGProtoSolverParams& params, const multi1d<LatticeColorMatrix>& u);
 void createMGPreconditioner(const MGProtoMGDeflationParams& params, const multi1d<LatticeColorMatrix>& u);
+void modifyMGPreconditioner(std::shared_ptr<MGPreconditioner>& mg_ptr, const MGProtoSolverParams& params, const multi1d<LatticeColorMatrix> u);
 void deleteMGPreconditioner(const std::string& subspaceID);
 std::shared_ptr<MGPreconditioner> getMGPreconditioner(const std::string& subspaceId);
 
@@ -73,6 +73,7 @@ createFineEOLinOp( const MGProtoALIPrecParams& params, const multi1d<LatticeColo
     const MG::LatticeInfo& info);
 
 void createMGPreconditionerEO(const MGProtoSolverParams& params, const multi1d<LatticeColorMatrix>& u);
+void modifyMGPreconditionerEO(std::shared_ptr<MGPreconditionerEO>& mg_ptr, const MGProtoSolverParams& params, const multi1d<LatticeColorMatrix> u);
 void deleteMGPreconditionerEO(const std::string& subspaceID);
 std::shared_ptr<MGPreconditionerEO> getMGPreconditionerEO(const std::string& subspaceId);
 
