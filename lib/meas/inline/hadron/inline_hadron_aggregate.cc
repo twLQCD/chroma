@@ -20,6 +20,7 @@
 #include "meas/inline/hadron/inline_disco_w.h"
 #include "meas/inline/hadron/inline_disco_prob_defl_w.h"
 #include "meas/inline/hadron/inline_disco_prob_defl_superb_w.h"
+#include "meas/inline/hadron/inline_disco_frequencysplitting_prob_superb_w.h"
 #include "meas/inline/hadron/inline_disco_eoprec_w.h"
 #include "meas/inline/hadron/inline_disco_eo_eigcg_w.h"
 #include "meas/inline/hadron/inline_disco_eigcg_w.h"
@@ -142,6 +143,7 @@ namespace Chroma
 	success &= InlineDiscoEigCGEnv::registerAll();
 	success &= InlineDiscoProbDefl::registerAll();
 	success &= InlineDiscoProbDeflSuperb::registerAll();
+	success &= InlineDiscoFreqSplitProbSuperbV2::registerAll();
 
 	success &= InlineStagToWilsEnv::registerAll();
 	success &= InlineSinkSmearEnv::registerAll();
