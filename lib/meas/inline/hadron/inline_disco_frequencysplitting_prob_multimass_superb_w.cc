@@ -12,7 +12,7 @@
 #include "fermact.h"
 #include "meas/glue/mesplq.h"
 #include "meas/hadron/greedy_coloring.h"
-#include "meas/hadron/interpolation_v2.h"
+#include "meas/hadron/interpolation.h"
 #include "meas/inline/abs_inline_measurement_factory.h"
 #include "meas/inline/io/named_objmap.h"
 #include "meas/inline/make_xml_file.h"
