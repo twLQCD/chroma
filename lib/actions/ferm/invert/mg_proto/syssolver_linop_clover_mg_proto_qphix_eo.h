@@ -55,7 +55,7 @@ namespace Chroma {
 
 	  //! Return the subset on which the operator acts
 	  const Subset& subset() const;
-
+	  //const multi1d<LatticeColorMatrix> u = state->getLinks();
 	  //! Solve It!
 	  SystemSolverResults_t operator()(T& psi, const T& chi) const override;
   	  std::vector<SystemSolverResults_t> operator()(const std::vector<std::shared_ptr<T>>& psi, const std::vector<std::shared_ptr<const T>>& chi) const override;
@@ -74,6 +74,8 @@ namespace Chroma {
 
 	  std::shared_ptr<UnprecFGMRES> wrapped;
 	  std::shared_ptr<EoFGMRES> eo_solver;
+
+	  //friend void MGProtoHelpersQPhiX::modifyMGPreconditionerEO(std::shared_ptr<MGProtoHelpersQPhiX::MGPreconditionerEO>& mg_pointer, const MGProtoSolverParams& params, const multi1d<LatticeColorMatrix> u); 
 
   };
 

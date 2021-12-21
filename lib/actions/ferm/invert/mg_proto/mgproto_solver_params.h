@@ -69,6 +69,7 @@ public:
 	multi1d<bool> VCycleVerboseP;
 
 	std::string SubspaceId;
+	bool reuse_subspace;
 
 };
 

@@ -9,6 +9,8 @@
 #include "actions/ferm/invert/mg_proto/mg_proto_qphix_helpers.h"
 #include "lattice/qphix/qphix_eo_clover_linear_operator.h"
 #include "lattice/solver.h"
+#include "lattice/coarse/coarse_op.h"
+#include "lattice/mg_level_coarse.h"
 #include "lattice/fine_qdpxx/mg_params_qdpxx.h"
 #include "lattice/qphix/mg_level_qphix.h"
 #include "lattice/qphix/qphix_mgdeflation.h"
@@ -141,6 +143,173 @@ void deleteMGPreconditioner(const std::string& subspaceId)
 void deleteMGPreconditionerEO(const std::string& subspaceId)
 {
 	deleteMGPreconditionerT<MGPreconditionerEO>(subspaceId);
+}
+
+template<typename PrecT>
+shared_ptr<PrecT> getMGPreconditionerT(const std::string& subspaceId)
+{
+	shared_ptr<PrecT> ret_val = nullptr;
+	if( TheNamedObjMap::Instance().check(subspaceId) ) {
+	QDPIO::cout << "  ... Subspace ID found... returning" <<std::endl;
+	ret_val = TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId);
+
+	}
+	else {
+	QDPIO::cout << "Object Not Found... Returning Null" << std::endl;
+	ret_val = nullptr;
+
+	}
+	return ret_val;
+
+}
+
+shared_ptr<MGPreconditioner> getMGPreconditioner(const std::string& subspaceId)
+		{
+			return getMGPreconditionerT<MGPreconditioner>(subspaceId);
+		}
+
+
+shared_ptr<MGPreconditionerEO> getMGPreconditionerEO(const std::string& subspaceId)
+		{
+			return getMGPreconditionerT<MGPreconditionerEO>(subspaceId);
+		}
+
+template<typename PrecT>
+void
+modifyMGPreconditionerT(shared_ptr<PrecT>& mg_ptr, const MGProtoSolverParams& params, const multi1d<LatticeColorMatrix> u)
+{
+        START_CODE();
+        StopWatch swatch;
+        swatch.reset();
+        swatch.start();
+
+        const std::string& subspaceId = params.SubspaceId;
+	QDPIO::cout << "Modifying the Preconditioner with SubspaceID = " << subspaceId << std::endl;
+	//const multi1d<LatticeColorMatrix> u = state->getLinks();
+	//shared_ptr<typename PrecT> mg_ptr = getMGPreconditionerT<PrecT>(subspaceId);
+
+        // First make an info from the lattice parameters:
+
+	StopWatch modwatch;
+	modwatch.reset();
+	modwatch.start();
+
+	 IndexArray latdims = {{ QDP::Layout::subgridLattSize()[0],
+                QDP::Layout::subgridLattSize()[1],
+                QDP::Layout::subgridLattSize()[2],
+                QDP::Layout::subgridLattSize()[3] }};	
+
+	(mg_ptr->mg_levels->fine_level).info = std::make_shared<LatticeInfo>( latdims, 4,3,*new NodeInfo());
+
+	//make a new fine level operator
+	shared_ptr<typename PrecT::LinOpT> M_new = createFineLinOpT<typename PrecT::LinOpT>( params, u, *((mg_ptr->mg_levels->fine_level).info) );
+	mg_ptr->M = M_new;
+	shared_ptr<typename PrecT::LinOpFT> M_f=createFineLinOpT<typename PrecT::LinOpFT>( params, u, *((mg_ptr->mg_levels->fine_level).info) );
+	(mg_ptr->mg_levels->fine_level).M = M_f; //maybe?
+	M_f->clear();
+	//M_new->clear();
+
+	//make new coarse gauge links and coarse operator for level 1 from level 0
+	(mg_ptr->mg_levels->fine_level).M->generateCoarse(  (mg_ptr->mg_levels->fine_level).blocklist,  (mg_ptr->mg_levels->fine_level).null_vecs,
+								*((mg_ptr->mg_levels->coarse_levels[0].gauge)));
+
+	MG::ModifyCoarseOp(mg_ptr->mg_levels->coarse_levels[0]);
+
+	//now do it for the rest of the levels
+	for (int nl = 1; nl < mg_ptr->mg_levels->coarse_levels.size(); ++nl){
+		(mg_ptr->mg_levels->coarse_levels[nl-1]).M->generateCoarse( (mg_ptr->mg_levels->coarse_levels[nl-1]).blocklist, (mg_ptr->mg_levels->coarse_levels[nl-1]).null_vecs,
+										*((mg_ptr->mg_levels->coarse_levels[nl].gauge)));
+		MG::ModifyCoarseOp(mg_ptr->mg_levels->coarse_levels[nl]);
+	}
+
+        if( (mg_ptr->mg_levels->fine_level).M == nullptr ) {
+          QDPIO::cout << "Error... Barfaroni. Fine Level M is null after subspace modification" << std::endl;
+          QDP_abort(1);
+        }
+
+	modwatch.stop();
+	QDPIO::cout << "MG_PROTO_QPHIX_SETUP: Operator and Link Modification Took : " << modwatch.getTimeInSeconds() << " sec" << std::endl;
+
+	//now need to modify the smoothers with the new ops
+	//honestly, since all of the smoothers are private in
+	//the vcycle class, it is probably easier to just replace the 
+	//entire vcycle
+	//
+        StopWatch vwatch;
+        vwatch.reset();
+        vwatch.start();
+	
+        QDPIO::cout << "Creating VCycle Parameters..." << std::endl;
+        vector<MG::VCycleParams> v_params(params.MGLevels-1);
+        for(int l=0; l < params.MGLevels-1;++l) {
+                QDPIO::cout << "   Level " << l << std::endl;
+                v_params[l].pre_smoother_params.MaxIter=params.VCyclePreSmootherMaxIters[l];
+                v_params[l].pre_smoother_params.RsdTarget=toDouble(params.VCyclePreSmootherRsdTarget[l]);
+                v_params[l].pre_smoother_params.VerboseP =params.VCyclePreSmootherVerboseP[l];
+                v_params[l].pre_smoother_params.Omega =toDouble(params.VCyclePreSmootherRelaxOmega[l]);
+
+                v_params[l].post_smoother_params.MaxIter=params.VCyclePostSmootherMaxIters[l];
+                v_params[l].post_smoother_params.RsdTarget=toDouble(params.VCyclePostSmootherRsdTarget[l]);
+                v_params[l].post_smoother_params.VerboseP =params.VCyclePostSmootherVerboseP[l];
+                v_params[l].post_smoother_params.Omega =toDouble(params.VCyclePostSmootherRelaxOmega[l]);
+
+                v_params[l].bottom_solver_params.MaxIter=params.VCycleBottomSolverMaxIters[l];
+                v_params[l].bottom_solver_params.NKrylov = params.VCycleBottomSolverNKrylov[l];
+                v_params[l].bottom_solver_params.RsdTarget= toDouble(params.VCycleBottomSolverRsdTarget[l]);
+                v_params[l].bottom_solver_params.VerboseP = params.VCycleBottomSolverVerboseP[l];
+
+                v_params[l].cycle_params.MaxIter=params.VCycleMaxIters[l];
+                v_params[l].cycle_params.RsdTarget=toDouble(params.VCycleRsdTarget[l]);
+                v_params[l].cycle_params.VerboseP = params.VCycleVerboseP[l];
+        }
+
+        QDPIO::cout << "Creating VCycle Preconditioner...";
+
+        shared_ptr<typename PrecT::VCycleT> new_v_cycle=make_shared<typename PrecT::VCycleT>(v_params, *(mg_ptr->mg_levels));
+	mg_ptr->v_cycle = new_v_cycle;
+
+        QDPIO::cout << "Done";	
+
+        vwatch.stop();
+        QDPIO::cout << "MG_PROTO_QPHIX_SETUP: V_Cycle Modification Took : " << vwatch.getTimeInSeconds() << " sec" << std::endl;
+
+        QDPIO::cout << "Saving in Map" << std::endl;
+        QDPIO::cout << "Creating Named Object Map Entry for subspace" << std::endl;
+        //XMLBufferWriter file_xml;
+        //push(file_xml, "FileXML");
+        //pop(file_xml);
+
+        //XMLBufferWriter record_xml;
+        //push(record_xml, "RecordXML");
+        //write(record_xml, "InvertParam", params);
+        //pop(record_xml);
+
+        //TheNamedObjMap::Instance().create<shared_ptr<PrecT>>(subspaceId);
+        //TheNamedObjMap::Instance().get(subspaceId).setFileXML(file_xml);
+        //TheNamedObjMap::Instance().get(subspaceId).setRecordXML(record_xml);
+        //TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)=make_shared<PrecT>();
+        TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)->mg_levels = mg_ptr->mg_levels;
+        TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)->v_cycle = new_v_cycle;
+        TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)->M = M_new; 
+
+        swatch.stop();
+        QDPIO::cout << "MG_PROTO_QPHIX_SETUP: Subspace Modification Took : " << swatch.getTimeInSeconds() << " sec" << std::endl;
+
+        END_CODE();
+	
+	
+}
+
+void
+modifyMGPreconditioner(shared_ptr<MGPreconditioner>& mg_ptr, const MGProtoSolverParams& params, const multi1d<LatticeColorMatrix> u)
+{
+        modifyMGPreconditionerT<MGPreconditioner>(mg_ptr, params, u);
+}
+
+void
+modifyMGPreconditionerEO(shared_ptr<MGPreconditionerEO>& mg_ptr, const MGProtoSolverParams& params, const multi1d<LatticeColorMatrix> u)
+{
+        modifyMGPreconditionerT<MGPreconditionerEO>(mg_ptr, params, u);
 }
 
 template<typename PrecT>
@@ -472,42 +641,6 @@ createALIPrec( const MGProtoALIPrecParams& params, const multi1d<LatticeColorMat
 
 	return aliprec;
 }
-
-
-template<typename PrecT>
-shared_ptr<PrecT> getMGPreconditionerT(const std::string& subspaceId)
-{
-	shared_ptr<PrecT> ret_val = nullptr;
-	if( TheNamedObjMap::Instance().check(subspaceId) ) {
-		// Found it... Delete it.
-		QDPIO::cout << "  ... Subspace ID found... returning" <<std::endl;
-
-		// This will erase the MGPreconditioner, which has in it shared pointers.
-		// If the shared pointers are destroyed, and there are no references remaining
-		// then MG Levels will be destroyed as weill v_cycle
-		// These only hold allocated data by shared pointer so they too should be cleaned
-		ret_val = TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId);
-
-	}
-	else {
-		QDPIO::cout << "Object Not Found... Returning Null" << std::endl;
-		ret_val = nullptr;
-
-	}
-	return ret_val;
-
-}
-
-shared_ptr<MGPreconditioner> getMGPreconditioner(const std::string& subspaceId)
-		{
-			return getMGPreconditionerT<MGPreconditioner>(subspaceId);
-		}
-
-
-shared_ptr<MGPreconditionerEO> getMGPreconditionerEO(const std::string& subspaceId)
-		{
-			return getMGPreconditionerT<MGPreconditionerEO>(subspaceId);
-		}
 
 
 }
