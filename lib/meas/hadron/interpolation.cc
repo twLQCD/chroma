@@ -1,7 +1,7 @@
 //file for interpolating variances
 
 #include "chromabase.h"
-#include "meas/hadron/interpolation_v2.h"
+#include "meas/hadron/interpolation.h"
 #include <vector>
 #include <algorithm>
 #include <cmath>
