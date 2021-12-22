@@ -55,6 +55,7 @@ namespace Chroma
 	multi1d<int> num_bcshifts;
 	ChromaProp_t prop;  		//propagator
 	int probing_distance;
+	int probing_power;
         std::string probing_file;	//probing file for the inverse
 	multi1d<int> noise_vectors;  	//The number of noise vectors for each level for the trace estimation
 	int num_samples;		//The number of noise vectors to estimate the variance for interpolation. Same number used per level
