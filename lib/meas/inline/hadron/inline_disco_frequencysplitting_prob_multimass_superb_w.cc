@@ -285,6 +285,11 @@ namespace Chroma
         }
          QDPIO::cout << "Parsed hpe probing file " << tmp << std::endl;
          param.hpe_probing_files[i] = tmp;
+      }else{
+	param.hpe_probing_files.resize(param.max_path_length+1);
+	for (int i = 0; i < param.hpe_probing_files.size(); i++){
+	    param.hpe_probing_files[i] = "nofile";
+	}
       }
 
       if(inputtop.count("gamma_disp")!=0){
@@ -1220,7 +1225,8 @@ namespace Chroma
 
       std::vector<std::shared_ptr<Coloring>> hop_coloring(param.max_path_length+1);
       for (int i = 0; i < param.max_path_length+1; i++){
-      if (!param.hpe_probing_files[i].empty()) {
+      //if (!param.hpe_probing_files[i].empty()) {
+      if (param.hpe_probing_files[i] != "nofile"){
         QDPIO::cout << "Reading colors from file " << param.hpe_probing_files[i] << std::endl;
         hop_coloring[i].reset(new Coloring(param.hpe_probing_files[i]));
       } else {
@@ -1846,11 +1852,11 @@ namespace Chroma
 
       //since we are using two multigrids at once, but only one propagator tag
       //need to copy the params.param.invParam, and rename the subspace
-      ChromaProp_t prop_s = params.param.prop;
+      //ChromaProp_t prop_s = params.param.prop;
       //some function to replace the subspaceid tag in prop_s.invParam.xml
       //
-      std::string mod = "s";
-      modifySubspaceId(prop_s.invParam.xml, mod);
+      //std::string mod = "s";
+      //modifySubspaceId(prop_s.invParam.xml, mod);
 
       for (int level = 0; level < num_levels; level++){
 	
@@ -1871,27 +1877,21 @@ namespace Chroma
         Handle< FermState<T,P,Q> > state_r(S_r->createState(u));
 
 	modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
-        Handle< SystemSolver<LatticeFermion> > PPR = S_r->qprop(state_r, params.param.prop.invParam);
+        //Handle< SystemSolver<LatticeFermion> > PPR = S_r->qprop(state_r, params.param.prop.invParam);
+        Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
 
 
-	//modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
-	modifyMass(prop_s.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
-        //std::istringstream  xml_s(params.param.prop.fermact.xml);
+	/*modifyMass(prop_s.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
         std::istringstream  xml_s(prop_s.fermact.xml);
         XMLReader  fermacts(xml_s);
 
 	
-        //Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
-        //                                                       fermacts,
-        //                                                       params.param.prop.fermact.path));
         Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(prop_s.fermact.id,
                                            fermacts, prop_s.fermact.path));
         Handle< FermState<T,P,Q> > state_s(S_s->createState(u));	
 
-	//modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
 	modifyMass(prop_s.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
-        //Handle< SystemSolver<LatticeFermion> > PPS = S_s->qprop(state_s, params.param.prop.invParam);
-        Handle< SystemSolver<LatticeFermion> > PPS = S_s->qprop(state_s, prop_s.invParam);
+        Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state_s, prop_s.invParam); */
 
 	double count_r = 0.0;
 	double count_s = 0.0;
@@ -1948,7 +1948,7 @@ namespace Chroma
 	  //modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
 	  //Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
 	  //get the lower mass solutions
-	  std::vector<SystemSolverResults_t> res_r = (*PPR)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+	  std::vector<SystemSolverResults_t> res_r = (*PP)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
 	  for (int t = 0; t < res_r.size(); t++){
 	  count_r += 1.0 * res_r[t].n_count;
 	  }
@@ -1957,7 +1957,20 @@ namespace Chroma
 	  //modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
           //PP = S_s->qprop(state_s, params.param.prop.invParam);
 	  //get the higher mass solutions
-          std::vector<SystemSolverResults_t> res_s = (*PPS)(v_psi[1], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+
+        modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
+        std::istringstream  xml_s(params.param.prop.fermact.xml);
+        XMLReader  fermacts(xml_s);
+
+
+        Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
+                                           fermacts, params.param.prop.fermact.path));
+        Handle< FermState<T,P,Q> > state_s(S_s->createState(u));
+
+        modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
+        PP = S_s->qprop(state_s, params.param.prop.invParam);
+
+          std::vector<SystemSolverResults_t> res_s = (*PP)(v_psi[1], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
 	  for (int t = 0; t < res_s.size(); t++){
 	  count_s += 1.0 * res_s[t].n_count;
 	  }
@@ -1981,7 +1994,20 @@ namespace Chroma
           //modify the mass in the inverter params, if there is one
           //modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
           //Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state_s, params.param.prop.invParam);
-	   std::vector<SystemSolverResults_t> res_s = (*PPS)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+
+        modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
+        std::istringstream  xml_s(params.param.prop.fermact.xml);
+        XMLReader  fermacts(xml_s);
+
+
+        Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
+                                           fermacts, params.param.prop.fermact.path));
+        Handle< FermState<T,P,Q> > state_s(S_s->createState(u));
+
+        modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
+        PP = S_s->qprop(state_s, params.param.prop.invParam);
+
+	   std::vector<SystemSolverResults_t> res_s = (*PP)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
 	  for (int t = 0; t < res_s.size(); t++){
 	  count_s += 1.0 * res_s[t].n_count;
 	  }
@@ -2113,7 +2139,7 @@ for (int level = 0; level < num_levels; level++){
 	write(file_xml, "lattSize", QDP::Layout::lattSize());
 	write(file_xml, "decay_dir", decay_dir);
 	write(file_xml, "Params", params.param);
-	write(file_xml, "Config_info", gauge_xml);
+	//write(file_xml, "Config_info", gauge_xml);
 	pop(file_xml);
 
 	std::string file_str(file_xml.str());

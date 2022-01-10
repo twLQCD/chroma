@@ -199,11 +199,11 @@ modifyMGPreconditionerT(shared_ptr<PrecT>& mg_ptr, const MGProtoSolverParams& pa
                 QDP::Layout::subgridLattSize()[2],
                 QDP::Layout::subgridLattSize()[3] }};	
 
-	(mg_ptr->mg_levels->fine_level).info = std::make_shared<LatticeInfo>( latdims, 4,3,*new NodeInfo());
+	//(mg_ptr->mg_levels->fine_level).info = std::make_shared<LatticeInfo>( latdims, 4,3,*new NodeInfo());
 
 	//make a new fine level operator
-	shared_ptr<typename PrecT::LinOpT> M_new = createFineLinOpT<typename PrecT::LinOpT>( params, u, *((mg_ptr->mg_levels->fine_level).info) );
-	mg_ptr->M = M_new;
+	shared_ptr<typename PrecT::LinOpT> M = createFineLinOpT<typename PrecT::LinOpT>( params, u, *((mg_ptr->mg_levels->fine_level).info) );
+	mg_ptr->M = M;
 	shared_ptr<typename PrecT::LinOpFT> M_f=createFineLinOpT<typename PrecT::LinOpFT>( params, u, *((mg_ptr->mg_levels->fine_level).info) );
 	(mg_ptr->mg_levels->fine_level).M = M_f; //maybe?
 	M_f->clear();
@@ -265,8 +265,8 @@ modifyMGPreconditionerT(shared_ptr<PrecT>& mg_ptr, const MGProtoSolverParams& pa
 
         QDPIO::cout << "Creating VCycle Preconditioner...";
 
-        shared_ptr<typename PrecT::VCycleT> new_v_cycle=make_shared<typename PrecT::VCycleT>(v_params, *(mg_ptr->mg_levels));
-	mg_ptr->v_cycle = new_v_cycle;
+        shared_ptr<typename PrecT::VCycleT> v_cycle=make_shared<typename PrecT::VCycleT>(v_params, *(mg_ptr->mg_levels));
+	mg_ptr->v_cycle = v_cycle;
 
         QDPIO::cout << "Done";	
 
@@ -289,8 +289,8 @@ modifyMGPreconditionerT(shared_ptr<PrecT>& mg_ptr, const MGProtoSolverParams& pa
         //TheNamedObjMap::Instance().get(subspaceId).setRecordXML(record_xml);
         //TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)=make_shared<PrecT>();
         TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)->mg_levels = mg_ptr->mg_levels;
-        TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)->v_cycle = new_v_cycle;
-        TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)->M = M_new; 
+        TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)->v_cycle = v_cycle;
+        TheNamedObjMap::Instance().getData<shared_ptr<PrecT>>(subspaceId)->M = M; 
 
         swatch.stop();
         QDPIO::cout << "MG_PROTO_QPHIX_SETUP: Subspace Modification Took : " << swatch.getTimeInSeconds() << " sec" << std::endl;
