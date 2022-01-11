@@ -166,17 +166,23 @@ double linearInterpolation(const double& y0, const double& y1, const double& x0,
 
 std::vector<int> intersect(const std::vector<double>& x, const std::vector<double>& y);
 
-MinCosts_t one_shift(MinCosts_t mincosts, const CostHolder_t& costs);
+//MinCosts_t one_shift(MinCosts_t mincosts, const CostHolder_t& costs);
+void one_shift(MinCosts_t& mincosts, const CostHolder_t& costs);
 
-MinCosts_t two_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+//MinCosts_t two_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+void two_shifts(MinCosts_t& mincosts, const CostHolder_t& costs);
 
-MinCosts_t three_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+//MinCosts_t three_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+void three_shifts(MinCosts_t& mincosts, const CostHolder_t& costs);
 
-MinCosts_t four_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+//MinCosts_t four_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+void four_shifts(MinCosts_t& mincosts, const CostHolder_t& costs);
 
-MinCosts_t five_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+//MinCosts_t five_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+void five_shifts(MinCosts_t& mincosts, const CostHolder_t& costs);
 
-MinCosts_t six_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+//MinCosts_t six_shifts(MinCosts_t mincosts, const CostHolder_t& costs);
+void six_shifts(MinCosts_t& mincosts, const CostHolder_t& costs);
 
 MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& costs);
 

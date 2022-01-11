@@ -62,10 +62,10 @@ std::vector<int> intersect(const std::vector<double>& x, const std::vector<doubl
         return z;
 }
 
-MinCosts_t one_shift(MinCosts_t mincosts, const CostHolder_t& costs){
+void one_shift(MinCosts_t& mincosts, const CostHolder_t& costs){
 
         //QDPIO::cout << "Calculating the minimum 1 shift " << std::endl;
-	mincosts.shifts.resize(1);
+	//mincosts.shifts.resize(1);
 	mincosts.reg_costs = costs.level_costs[0]*costs.r_variances[0];
 	double tmpcost = std::numeric_limits<double>::max();
 	double tmpmincost;
@@ -88,13 +88,13 @@ MinCosts_t one_shift(MinCosts_t mincosts, const CostHolder_t& costs){
 			mincosts.shifts[0] = costs.shifts[i];
 		}
 	}
-	return mincosts;
+	//return mincosts;
 }
 
-MinCosts_t two_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
+void two_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
 
         //QDPIO::cout << "Calculating the minimum 2 shifts " << std::endl;
-	mincosts.shifts.resize(2);
+	//mincosts.shifts.resize(2);
 	mincosts.reg_costs = costs.level_costs[0]*costs.r_variances[0];
 	double tmpcost = std::numeric_limits<double>::max();
         double tmpmincost;
@@ -121,14 +121,14 @@ MinCosts_t two_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
 		}
 	}
 	}
-	return mincosts;
+	//return mincosts;
 
 }
 
-MinCosts_t three_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
+void three_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
 
         //QDPIO::cout << "Calculating the minimum 3 shifts " << std::endl;
-        mincosts.shifts.resize(3);
+        //mincosts.shifts.resize(3);
         mincosts.reg_costs = costs.level_costs[0]*costs.r_variances[0];
         double tmpcost = std::numeric_limits<double>::max();
         double tmpmincost;
@@ -160,14 +160,14 @@ MinCosts_t three_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
 			}
               }
         }
-        return mincosts;
+        //return mincosts;
 
 }
 
-MinCosts_t four_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
+void four_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
 
         //QDPIO::cout << "Calculating the minimum 4 shifts " << std::endl;
-        mincosts.shifts.resize(4);
+        //mincosts.shifts.resize(4);
         mincosts.reg_costs = costs.level_costs[0]*costs.r_variances[0];
         double tmpcost = std::numeric_limits<double>::max();
         double tmpmincost;
@@ -204,14 +204,14 @@ MinCosts_t four_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
               }
         }
      }
-     return mincosts;
+     //return mincosts;
 
 }
 
-MinCosts_t five_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
+void five_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
 
         //QDPIO::cout << "Calculating the minimum 5 shifts " << std::endl;
-        mincosts.shifts.resize(5);
+        //mincosts.shifts.resize(5);
         mincosts.reg_costs = costs.level_costs[0]*costs.r_variances[0];
         double tmpcost = std::numeric_limits<double>::max();
         double tmpmincost;
@@ -253,14 +253,14 @@ MinCosts_t five_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
               }
         }
      }
-     return mincosts;
+     //return mincosts;
 
 }
 
-MinCosts_t six_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
+void six_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
 
 	//QDPIO::cout << "Calculating the minimum 6 shifts " << std::endl;
-        mincosts.shifts.resize(6);
+        //mincosts.shifts.resize(6);
         mincosts.reg_costs = costs.level_costs[0]*costs.r_variances[0];
         double tmpcost = std::numeric_limits<double>::max();
         double tmpmincost;
@@ -307,7 +307,7 @@ MinCosts_t six_shifts(MinCosts_t mincosts, const CostHolder_t& costs){
               }
         }
      }
-     return mincosts;
+     //return mincosts;
 
 }
 
@@ -322,8 +322,14 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
 	QDPIO::cout << "Not Enough Shifts" << std::endl;
 	//return mincosts;
 	break;
-	}else{	
-	mincosts = one_shift(mincosts, costs);
+	}else{
+	//mincosts.min_costs = 0.0;
+	//mincosts.reg_costs = 0.0;
+	mincosts.shifts.resize(1);
+	mincosts.optimal_level_costs.resize(2);
+	mincosts.optimal_level_variances.resize(2);
+	//mincosts = one_shift(mincosts, costs);
+	one_shift(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
 	QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
 	for (int i = 0; i < mincosts.shifts.size(); i++){
@@ -347,7 +353,13 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
         //return mincosts;
         break;
         }else{
-	mincosts = two_shifts(mincosts, costs);
+        //mincosts.min_costs = 0.0;
+        //mincosts.reg_costs = 0.0;
+        mincosts.shifts.resize(2);
+        mincosts.optimal_level_costs.resize(3);
+        mincosts.optimal_level_variances.resize(3);
+	//mincosts = two_shifts(mincosts, costs);
+	two_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
         for (int i = 0; i < mincosts.shifts.size(); i++){
@@ -371,7 +383,13 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
         //return mincosts;
         break;
         }else{
-	mincosts = three_shifts(mincosts, costs);
+        //mincosts.min_costs = 0.0;
+        //mincosts.reg_costs = 0.0;
+        mincosts.shifts.resize(3);
+        mincosts.optimal_level_costs.resize(4);
+        mincosts.optimal_level_variances.resize(4);
+	//mincosts = three_shifts(mincosts, costs);
+	three_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
         for (int i = 0; i < mincosts.shifts.size(); i++){
@@ -395,7 +413,13 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
         //return mincosts;
         break;
         }else{
-	mincosts = four_shifts(mincosts, costs);
+        //mincosts.min_costs = 0.0;
+        //mincosts.reg_costs = 0.0;
+        mincosts.shifts.resize(4);
+        mincosts.optimal_level_costs.resize(5);
+        mincosts.optimal_level_variances.resize(5);
+	//mincosts = four_shifts(mincosts, costs);
+	four_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
         for (int i = 0; i < mincosts.shifts.size(); i++){
@@ -419,7 +443,13 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
         //return mincosts;
         break;
         }else{
-	mincosts = five_shifts(mincosts, costs);
+        //mincosts.min_costs = 0.0;
+        //mincosts.reg_costs = 0.0;
+        mincosts.shifts.resize(5);
+        mincosts.optimal_level_costs.resize(6);
+        mincosts.optimal_level_variances.resize(6);
+	//mincosts = five_shifts(mincosts, costs);
+	five_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
         for (int i = 0; i < mincosts.shifts.size(); i++){
@@ -443,7 +473,13 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
         //return mincosts;
         break;
         }else{
-	mincosts = six_shifts(mincosts, costs);
+        //mincosts.min_costs = 0.0;
+        //mincosts.reg_costs = 0.0;
+        mincosts.shifts.resize(6);
+        mincosts.optimal_level_costs.resize(7);
+        mincosts.optimal_level_variances.resize(7);
+	//mincosts = six_shifts(mincosts, costs);
+	six_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
         for (int i = 0; i < mincosts.shifts.size(); i++){
