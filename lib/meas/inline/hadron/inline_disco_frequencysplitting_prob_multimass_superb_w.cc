@@ -1858,6 +1858,15 @@ namespace Chroma
       //std::string mod = "s";
       //modifySubspaceId(prop_s.invParam.xml, mod);
 
+          modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[0]);
+          modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[0]);
+          std::istringstream  xml_s(params.param.prop.fermact.xml);
+          XMLReader  fermactr(xml_s);
+          Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
+                                                               fermactr,
+                                                               params.param.prop.fermact.path));
+          Handle< FermState<T,P,Q> > state(S_s->createState(u));
+
       for (int level = 0; level < num_levels; level++){
 	
 	if (level < num_levels-1){
@@ -1867,18 +1876,17 @@ namespace Chroma
 	}
 	QDPIO::cout << "On level : " << level << std::endl;
 	QDPIO::cout << "Computing with shifts " << params.param.shifts[level_switch] << " and " << params.param.shifts[level_switch+1] << std::endl;
-	modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch]);
-        std::istringstream  xml_r(params.param.prop.fermact.xml);
-        XMLReader  fermactr(xml_r);
+	//modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch]);
+        //std::istringstream  xml_r(params.param.prop.fermact.xml);
+        //XMLReader  fermactr(xml_r);
 
-        Handle< FermionAction<T,P,Q> > S_r(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
-                                                               fermactr,
-                                                               params.param.prop.fermact.path));
-        Handle< FermState<T,P,Q> > state_r(S_r->createState(u));
+        //Handle< FermionAction<T,P,Q> > S_r(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
+        //                                                       fermactr,
+        //                                                       params.param.prop.fermact.path));
+        //Handle< FermState<T,P,Q> > state_r(S_r->createState(u));
 
-	modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
-        //Handle< SystemSolver<LatticeFermion> > PPR = S_r->qprop(state_r, params.param.prop.invParam);
-        Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
+	//modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
+        //Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
 
 
 	/*modifyMass(prop_s.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
@@ -1895,6 +1903,10 @@ namespace Chroma
 
 	double count_r = 0.0;
 	double count_s = 0.0;
+	std::vector<double> count(2);
+	//count.resize(2);
+	
+
 	for (int noise = 0 ; noise < params.param.noise_vectors[level]; noise++) {
 	std::map< KeyOperator_t, ValOperator_t > db;
         // doing a new noise vector
@@ -1914,7 +1926,7 @@ namespace Chroma
 
           // collect (Ns*Nc*dk) pairs of vectors
 	  X1dvector v_chi(Ns * Nc * dk);
-          for (int col=0; col<v_chi.size(); col++) v_chi[col].reset(new LatticeFermion);
+          for (int col=0; col<v_chi.size(); col++) {v_chi[col].reset(new LatticeFermion);}
 
 	  X2dmatrix v_psi(2, X1dvector(Ns * Nc * dk));
 	  for (int row = 0; row < 2; row++){
@@ -1937,7 +1949,7 @@ namespace Chroma
                 *v_chi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
                 CvToFerm(vec_srce, *v_chi[i_v * Ns * Nc + color_source * Ns + spin_source], spin_source);
                 //*v_psi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
-		for (int row=0; row < 2; row++) *v_psi[row][i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
+		for (int row=0; row < 2; row++) {*v_psi[row][i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;}
               } 
             }
           }
@@ -1948,6 +1960,19 @@ namespace Chroma
 	  //modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
 	  //Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
 	  //get the lower mass solutions
+
+/*        modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch]);
+        std::istringstream  xml_r(params.param.prop.fermact.xml);
+        XMLReader  fermactr(xml_r);
+
+        Handle< FermionAction<T,P,Q> > S_r(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
+                                                               fermactr,
+                                                               params.param.prop.fermact.path));
+        Handle< FermState<T,P,Q> > state_r(S_r->createState(u));
+
+        modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
+        Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
+
 	  std::vector<SystemSolverResults_t> res_r = (*PP)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
 	  for (int t = 0; t < res_r.size(); t++){
 	  count_r += 1.0 * res_r[t].n_count;
@@ -1968,13 +1993,36 @@ namespace Chroma
         Handle< FermState<T,P,Q> > state_s(S_s->createState(u));
 
         modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
+        //Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state_s, params.param.prop.invParam);
         PP = S_s->qprop(state_s, params.param.prop.invParam);
 
           std::vector<SystemSolverResults_t> res_s = (*PP)(v_psi[1], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
-	  for (int t = 0; t < res_s.size(); t++){
-	  count_s += 1.0 * res_s[t].n_count;
-	  }
-	  QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count_s = " << count_s << std::endl;
+*/
+	int sol = 0;
+	for (int m = level_switch; m < level_switch+2; m++){
+	  modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[m]);
+	  modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[m]);
+	  std::istringstream  xml_r(params.param.prop.fermact.xml);
+	  XMLReader  fermactr(xml_r);
+          Handle< FermionAction<T,P,Q> > S_r(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
+                                                               fermactr,
+                                                               params.param.prop.fermact.path));
+          Handle< FermState<T,P,Q> > state_r(S_r->createState(u));
+	  Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
+	  std::vector<SystemSolverResults_t> res_r = (*PP)(v_psi[sol], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+          for (int t = 0; t < res_r.size(); t++){
+          count[sol] += 1.0 * res_r[t].n_count;
+          }
+          QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count = " << count[sol] << std::endl;
+	  sol++;
+	}
+
+
+
+	  //for (int t = 0; t < res_s.size(); t++){
+	  //count_s += 1.0 * res_s[t].n_count;
+	  //}
+	  //QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count_s = " << count_s << std::endl;
 
           // here the recursive call goes to compute 
           // the loops
@@ -1984,7 +2032,7 @@ namespace Chroma
 	  assert(v_chi.size() == v_psi[0].size());
 	  DComplex cmplxshifts;
 	  cmplxshifts = cmplx(params.param.shifts[level_switch+1]-params.param.shifts[level_switch],0.0);
-		do_disco(db, v_psi[0], v_psi[1], ft, params.param.use_ferm_state_links ? state_r->getLinks() : u, params.param.max_path_length, cmplxshifts, dk);
+	  do_disco(db, v_psi[0], v_psi[1], ft, params.param.use_ferm_state_links ? state->getLinks() : u, params.param.max_path_length, cmplxshifts, dk);
           swatch_dots.stop();
           QDPIO::cout << "Computing inner products " << swatch_dots.getTimeInSeconds() << " secs"
                       << std::endl;
@@ -1995,28 +2043,43 @@ namespace Chroma
           //modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
           //Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state_s, params.param.prop.invParam);
 
-        modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
-        std::istringstream  xml_s(params.param.prop.fermact.xml);
-        XMLReader  fermacts(xml_s);
+        //modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
+        //std::istringstream  xml_s(params.param.prop.fermact.xml);
+        //XMLReader  fermacts(xml_s);
 
 
-        Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
-                                           fermacts, params.param.prop.fermact.path));
-        Handle< FermState<T,P,Q> > state_s(S_s->createState(u));
+       // Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
+       //                                    fermacts, params.param.prop.fermact.path));
+       // Handle< FermState<T,P,Q> > state_s(S_s->createState(u));
 
-        modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
-        PP = S_s->qprop(state_s, params.param.prop.invParam);
+       // modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
+       // Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state_s, params.param.prop.invParam);
 
-	   std::vector<SystemSolverResults_t> res_s = (*PP)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
-	  for (int t = 0; t < res_s.size(); t++){
-	  count_s += 1.0 * res_s[t].n_count;
-	  }
-	  QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count_s = " << count_s << std::endl;
+      //std::vector<SystemSolverResults_t> res_s = (*PP)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+	//  for (int t = 0; t < res_s.size(); t++){
+	//  count_s += 1.0 * res_s[t].n_count;
+	//  }
+	//  QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count_s = " << count_s << std::endl;
+
+          modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
+          modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
+          std::istringstream  xml_r(params.param.prop.fermact.xml);
+          XMLReader  fermactr(xml_r);
+          Handle< FermionAction<T,P,Q> > S_r(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
+                                                               fermactr,
+                                                               params.param.prop.fermact.path));
+          Handle< FermState<T,P,Q> > state_r(S_r->createState(u));
+          Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
+          std::vector<SystemSolverResults_t> res_r = (*PP)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+          for (int t = 0; t < res_r.size(); t++){
+          count[0] += 1.0 * res_r[t].n_count;
+          }
+          QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count = " << count[0] << std::endl;
 
           StopWatch swatch_dots2;
           swatch_dots2.start();
           assert(v_chi.size() == v_psi[0].size());
-		  if (params.param.use_hpe){
+	  if (params.param.use_hpe){
 		  LatticeFermion v_eta;
 		  LatticeFermion v_tmp;
           for (int idk = 0; idk < dk; idk++){
@@ -2024,15 +2087,15 @@ namespace Chroma
 		   v_eta = *v_psi[0][idk * Nc * Ns + col];
 		   for (int p = 1; p < params.param.hpe_power+1; ++p){
 			D.evenHoppingOp(v_tmp, v_eta, PLUS);
-            D.oddHoppingOp(v_tmp, v_eta, PLUS);
-            v_eta = v_tmp;
+			D.oddHoppingOp(v_tmp, v_eta, PLUS);
+			v_eta = v_tmp;
 		   } //p
 		   *v_psi[0][idk * Nc * Ns + col] = v_eta;
 		  } //col
 	    } // idk
-		do_disco(db, v_chi, v_psi[0], ft, params.param.use_ferm_state_links ? state_s->getLinks() : u, params.param.max_path_length);
+		do_disco(db, v_chi, v_psi[0], ft, params.param.use_ferm_state_links ? state->getLinks() : u, params.param.max_path_length);
 	  } else { //use_hpe
-		do_disco(db, v_chi, v_psi[0], ft, params.param.use_ferm_state_links ? state_s->getLinks() : u, params.param.max_path_length);  
+		do_disco(db, v_chi, v_psi[0], ft, params.param.use_ferm_state_links ? state->getLinks() : u, params.param.max_path_length);  
 	  }
 	  swatch_dots2.stop();
       QDPIO::cout << "Computing inner products " << swatch_dots2.getTimeInSeconds() << " secs" << std::endl;
@@ -2056,10 +2119,10 @@ namespace Chroma
     } // noise
 
     if (level < num_levels - 1){
-      cl[level] = (count_r + count_s)/ (1.0 * params.param.noise_vectors[level]);
+      cl[level] = (count[0] + count[1])/ (1.0 * params.param.noise_vectors[level]);
       QDPIO::cout << "Cost on level " << level << " is " << cl[level] << std::endl;
     }else{
-      cl[level] = (count_s)/(1.0 * params.param.noise_vectors[level]);
+      cl[level] = (count[0])/(1.0 * params.param.noise_vectors[level]);
       QDPIO::cout << "Cost on level " << level << " is " << cl[level] << std::endl;
     }
 
