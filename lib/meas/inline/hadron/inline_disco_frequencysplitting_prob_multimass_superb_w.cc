@@ -1581,6 +1581,17 @@ namespace Chroma
         costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
 
 
+	//make sure all nodes get the same data
+	//int nodelist = Layout::nodeNumber();
+	//if (nodelist == 0){
+	   for (int i = 0; i < costs.r_variances.size(); i++){
+	       QDPIO::cin >> costs.r_variances[i];
+	       for (int j = 0; j < costs.rs_variances[i].size(); j++){
+	       QDPIO::cin >> costs.rs_variances[i][j];
+	       }
+	    }
+	//}
+
 	//here is the call for interpolation
 	if (noise > 0){
 	mincosts = getMinShifts(costs, param.del_s, param.num_bcshifts, param.use_mg);
@@ -1747,10 +1758,13 @@ namespace Chroma
 
       //get the initial mass before anything!!
       Real m_qi = getMass(params.param.prop.fermact);
+      int nodelist = Layout::nodeNumber();
+
 
       std::vector<MinCosts_t> mincosts;
       if(params.param.use_interpolation){
-	mincosts = getOptimalShifts(params.param, u);
+      mincosts = getOptimalShifts(params.param, u);
+      
       std::vector<double> tmpcosts;
       tmpcosts.resize(mincosts.size());
       for (int i = 0; i < tmpcosts.size(); i++){
@@ -1762,18 +1776,29 @@ namespace Chroma
       QDPIO::cout << "The minimum cost found with interpolation is " << *it << std::endl;
 
       int nshifts = mincosts[pos].shifts.size()+1;
-
       params.param.shifts.resize(nshifts);
       params.param.shifts[0] = 0.0;
       for (int i = 0; i < mincosts[pos].shifts.size(); i++){
 	  params.param.shifts[i+1].elem() = mincosts[pos].shifts[i];
       }
+
       QDPIO::cout << "The minimum shifts are : " <<std::endl;
       for (int i = 1; i < params.param.shifts.size(); i++){
 	  QDPIO::cout << params.param.shifts[i] << std::endl;
-      }
-      }
+      } 
       
+      }//use_interpolation
+
+      /*int numnodes = (Layout::vol())/(Layout::sitesOnNode());
+      for (int n = 0; n < numnodes; n++){
+	if (n == nodelist){
+	   std::cout << "I am node " << n << " and my shifts are : " << std::endl;
+	   for (int j = 0; j < params.param.shifts.size(); j++){
+		std::cout << params.param.shifts[j].elem() << std::endl;
+	   }
+	}
+      }*/
+       
 
       if (!params.param.debug){
 
@@ -2186,11 +2211,10 @@ for (int level = 0; level < num_levels; level++){
       QDPIO::cout << "Traces were  computed: time= " 
 		  << swatch.getTimeInSeconds() 
 		  << " secs" << std::endl;
-      
 
       // write out the results
       
-      // DB storage          
+      // DB storage         
       BinaryStoreDB<SerialDBKey<KeyOperator_t>,SerialDBData<ValOperator_t> > qdp_db;
       
       // Open the file, and write the meta-data and the binary for this operator
@@ -2229,7 +2253,6 @@ for (int level = 0; level < num_levels; level++){
           val.data().op[i] = it->second.op[i];
 	qdp_db.insert(key,val);
       }
-      
 
       pop(xml_out);  // close last tag
 
