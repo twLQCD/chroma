@@ -761,33 +761,33 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<int>& dels
 	QDPIO::cout << "Interpolating horizontally " << std::endl;
 	int k = 0; int i = 0; int t = 0;
 	std::vector<int> ix = intersect(slice(costs.shifts, 1, costs.shifts.size()-1), intshifts);
-	QDPIO::cout << "Shift intersection is : " << std::endl;
+	//QDPIO::cout << "Shift intersection is : " << std::endl;
 	for (auto ii : ix){ QDPIO::cout << ii << std::endl;}
 
 	//std::vector<double> s_intshifts;
-	QDPIO::cout << "Starting loop " << std::endl;
+	//QDPIO::cout << "Starting loop " << std::endl;
 	while (k < intshifts.size()-1){
-	QDPIO::cout << "Grabbing an iterator " << std::endl;
+	//QDPIO::cout << "Grabbing an iterator " << std::endl;
 	std::vector<double>::iterator it = int_vars.rs_variances[k].begin();
 	it += k;
 	std::vector<double> tvars;
-	QDPIO::cout << "Setting the variances to be interpolated" << std::endl;
+	//QDPIO::cout << "Setting the variances to be interpolated" << std::endl;
 	if (!isequal(k, ix[i]))
 	{
 	tvars.push_back(std::log(int_vars.rs_variances[k][k]));
 	for (int j = i; j < costs.shifts.size()-1; j++){
-	    QDPIO::cout << "On iteration " << k << " and on column " << j << ", not on a boundary " << std::endl;
+	    //QDPIO::cout << "On iteration " << k << " and on column " << j << ", not on a boundary " << std::endl;
 	    tvars.push_back(std::log(tmpvals_d[j][k]));
 	}
 	} else {
         for (int j = i; j < costs.shifts.size()-1; j++){
-	    QDPIO::cout << "On iteration " << k << " and on column " << j << ", on a boundary " << std::endl;
+	    //QDPIO::cout << "On iteration " << k << " and on column " << j << ", on a boundary " << std::endl;
             tvars.push_back(std::log(tmpvals_d[j][k]));
 	}
 	}
 	
 	std::vector<double> tshifts = slice(costs.shifts, t, costs.shifts.size()-1);
-	QDPIO::cout << "Setting the shifts to be interpolated" << std::endl;
+	//QDPIO::cout << "Setting the shifts to be interpolated" << std::endl;
 	if (!float_ismember(tshifts, intshifts[k]))
 	{
 	tshifts.erase(tshifts.begin());
@@ -797,14 +797,14 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<int>& dels
 	//hopefully to control floating point errors...
 	s_intshifts.erase(s_intshifts.begin());
 	s_intshifts.insert(s_intshifts.begin(), tshifts[0]);
-	QDPIO::cout << "On iteration " << k << " with shifts : " << std::endl;
-	for (auto ii : tshifts){
-		QDPIO::cout << ii << std::endl;
-	}
-	QDPIO::cout << "and variances : " << std::endl;
-	for (auto ii : tvars){
-		QDPIO::cout << ii << std::endl;
-	}
+	//QDPIO::cout << "On iteration " << k << " with shifts : " << std::endl;
+	//for (auto ii : tshifts){
+	//	QDPIO::cout << ii << std::endl;
+	//}
+	//QDPIO::cout << "and variances : " << std::endl;
+	//for (auto ii : tvars){
+	//	QDPIO::cout << ii << std::endl;
+	//}
 	tvars = interpolate(tshifts, tvars, s_intshifts, dir);
 	for (int j = 0; j < tvars.size(); j++){
 		tvars[j] = std::exp(tvars[j]);
