@@ -710,6 +710,7 @@ namespace Chroma
       StopWatch swatch_det;
       swatch_det.start();
       std::map< KeyOperator_t, ValOperator_t > dbdet;
+      double count= 0.0;
       for (int k = 0 ; k < proj->rank() ; k++) {
         // collect dk pairs of vectors
         LatticeFermion vi_lambda, // = v[i]/(u[i]'*Dslash*v[i])
@@ -775,7 +776,10 @@ namespace Chroma
             }
           }
 
-          (*PP)(v_psi, std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+          std::vector<SystemSolverResults_t> res = (*PP)(v_psi, std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+	  for (int t = 0; t < res.size(); t++){
+	    count += 1.0 * res[t].n_count;
+	  }
           proj->VUAObliqueProjector(v_q, std::vector<std::shared_ptr<const LatticeFermion>>(v_psi.begin(), v_psi.end()));
           for (int i=0; i<v_psi.size(); ++i)
             *v_q[i] = *v_psi[i] - *v_q[i]; // q <= (I - V*inv(U'*AV*)*U'*A)*quark_soln
@@ -797,6 +801,8 @@ namespace Chroma
         // Show stats
         show_stats(dbmean, dbvar, dbdet, 1, noise+1);
       } // noise
+
+      QDPIO::cout << "Inverter cost is : " << count/(1.0 * params.param.noise_vectors) << std::endl;
 
       // Normalize the traces
       for(std::map< KeyOperator_t, ValOperator_t >::iterator it=dbmean.begin();it != dbmean.end(); it++){
