@@ -940,7 +940,7 @@ namespace Chroma
 		  QDPIO::cout << "Variance for Displacement = " << dk << " and Gamma = " << g << " : " << it->second[g]/n << std::endl;
 		  break;
 	      //any other displacement, disp.size() = the displacement you want
-	      } else if (it->first.disp.size() == dk){
+	      } else if (it->first.disp.size() == dk && (it->first.disp.size() != 1)){
 		  out_vars[ii][j] = it->second[g]/n;
 		  QDPIO::cout << "Variance for Displacement = " << dk << " and Gamma = " << g << " : " << it->second[g]/n << std::endl;
 		  break;
@@ -998,7 +998,7 @@ namespace Chroma
                   out_vars[ii] = it->second[g]/n;
 		  QDPIO::cout << "Variance for Displacement = " << dk << " and Gamma = " << g << " : " << it->second[g]/n << std::endl;
                   break;
-              } else if (it->first.disp.size() == dk){
+              } else if (it->first.disp.size() == dk && (it->first.disp.size() != 1)){
                   out_vars[ii] = it->second[g]/n;
 		  QDPIO::cout << "Variance for Displacement = " << dk << " and Gamma = " << g << " : " << it->second[g]/n << std::endl;
                   break;
@@ -1054,7 +1054,7 @@ namespace Chroma
                   out_vars = it->second[g]/n;
                   QDPIO::cout << "Variance for Displacement = " << dk << " and Gamma = " << g << " : " << it->second[g]/n << std::endl;
                   break;
-              } else if (it->first.disp.size() == dk){
+              } else if (it->first.disp.size() == dk && (it->first.disp.size() != 1)){
                   out_vars = it->second[g]/n;
                   QDPIO::cout << "Variance for Displacement = " << dk << " and Gamma = " << g << " : " << it->second[g]/n << std::endl;
                   break;
