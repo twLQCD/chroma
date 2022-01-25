@@ -549,11 +549,14 @@ namespace Chroma
       }
 
       // Contract S and Q with all the gammas, and apply the displacements
+      StopWatch contracts;
+      contracts.start();
       std::string order_out = "gmNndsqt*";
       std::pair<SB::Tensor<9, SB::Complex>, std::vector<int>> r =
 	SB::doMomGammaDisp_contractions<9>(u, std::move(qbart), std::move(qt), 0, p, 0, SB::none,
 					   gamma_mats, disps, false, order_out);
-
+      contracts.stop();
+      QDPIO::cout << "All the contractions done in " << contracts.getTimeInSeconds() << " secs" << std::endl;
       // Gather all traces at the master node
       SB::Tensor<9, SB::Complex> con =
 	r.first.make_sure(SB::none, SB::OnHost, SB::OnMaster).getLocal();
@@ -561,6 +564,8 @@ namespace Chroma
       const std::vector<int>& disps_perm = r.second;
 
       // Do the update only on the master node
+      StopWatch dbtime;
+      dbtime.start();
       if (con)
       {
 	std::pair<KeyOperator_t, ValOperator_t> kv;
@@ -610,6 +615,8 @@ namespace Chroma
 	  }
 	}
       }
+      dbtime.stop();
+      QDPIO::cout << "DB updated in " << dbtime.getTimeInSeconds() << " secs" << std::endl;
     }
 
     void do_disco(std::map<KeyOperator_t, ValOperator_t>& db,
@@ -635,8 +642,14 @@ namespace Chroma
       std::string qbar_order = "cxyzXNQqt*";
       SB::Tensor<Nd + 6, SB::Complex> qbart(
         qbar_order, SB::latticeSize<Nd + 6>(qbar_order, {{'N', 1}, {'Q', Ns}, {'q', 1}, {'*', a}}));
+      for (int i = 0; i < a; ++i){
+	*q_tmp = cshift * *qbar[i];
+        SB::asTensorView(*q_tmp)
+          .rename_dims({{'s', 'Q'}})
+          .copyTo(qbart.kvslice_from_size({{'*', i}}, {{'*', 1}}));
+      }
       //for (int i = 0; i < a; ++i)
-      for (int idk = 0; idk < dk; ++idk){
+      /*for (int idk = 0; idk < dk; ++idk){
 	for (int col = 0; col < Nc * Ns; ++col){ 
 	if (col == 2 || col == 3 || col == 6 || col == 7 || col == 10 || col == 11){
 		*q_tmp = -1.0 * cshift * (Gamma(15) * *qbar[idk * Nc * Ns + col]);
@@ -650,7 +663,12 @@ namespace Chroma
           .copyTo(qbart.kvslice_from_size({{'*', idk * Nc * Ns + col}}, {{'*', 1}}));
 	}
       }
-    }
+    } */
+      /*for (int i = 0; i < a; ++i)
+	*q_tmp = cshift * *qbar[i];
+        SB::asTensorView(*q_tmp)
+          .rename_dims({{'s', 'Q'}})
+          .copyTo(qbart.kvslice_from_size({{'*', i}}, {{'*', 1}}));*/
 
       // Construct a vector with the desired contractions
       std::vector<std::vector<int>> disps;
@@ -1332,6 +1350,9 @@ namespace Chroma
       typedef multi1d<LatticeColorMatrix>  P;
       typedef multi1d<LatticeColorMatrix>  Q;
 
+      StopWatch variance_est;
+      variance_est.start();
+
       Real tmpmass = getMass(param.prop.fermact);
 
       std::vector<EvenOddPrecCloverLinOp> D;
@@ -1487,6 +1508,8 @@ namespace Chroma
 	  *g5v_chi[i_v] = Gamma(15) * *v_chi[i_v];
 	  }
 
+	  
+
 	  for (int m1 = 0; m1 < param.num_shifts; m1++){
 	      QDPIO::cout << "Solving for shift number " << m1 << " while generating the variances " <<  std::endl;
 	      modifyMass(param.prop.fermact.xml, tmpmass, param.shifts[m1]);
@@ -1628,7 +1651,8 @@ namespace Chroma
 
     } //noise
 
-
+    variance_est.stop();
+    QDPIO::cout << "Optimal shifts found in " << variance_est.getTimeInSeconds() << " secs " << std::endl;
 
     return mincosts;
     } // end getOptimalShifts
@@ -1965,17 +1989,24 @@ namespace Chroma
 	vec = cmplx(cos(theta),sin(theta));
 
         // All the loops
-        const int N_rhs = (params.param.max_rhs + Ns * Nc - 1) / Ns / Nc;
+        //const int N_rhs = (params.param.max_rhs + Ns * Nc - 1) / Ns / Nc;
+        const int N_rhs = params.param.max_rhs;
         for (int k1 = 0, dk = std::min(Nsrc, N_rhs); k1 < Nsrc ; k1 += dk, dk = std::min(Nsrc - k1, N_rhs)) {
 
           // collect (Ns*Nc*dk) pairs of vectors
-	  X1dvector v_chi(Ns * Nc * dk);
+	  //X1dvector v_chi(Ns * Nc * dk);
+             X1dvector v_chi(dk);
+             X1dvector g5v_chi(dk);
           for (int col=0; col<v_chi.size(); col++) {v_chi[col].reset(new LatticeFermion);}
+	  for (int col=0; col<v_chi.size(); col++) {g5v_chi[col].reset(new LatticeFermion);}
 
-	  X2dmatrix v_psi(2, X1dvector(Ns * Nc * dk));
+//	  X2dmatrix v_psi(2, X1dvector(Ns * Nc * dk));
+             X2dmatrix v_psi(2, X1dvector(dk));
+             //X2dmatrix g5v_psi(param.num_shifts, X1dvector(dk));
 	  for (int row = 0; row < 2; row++){
 	      for (int col = 0; col < v_psi[row].size(); col++){
 		  v_psi[row][col].reset(new LatticeFermion);
+		  //g5v_psi[row][col].reset(new LatticeFermion);
 	      }
 	  }
 
@@ -1983,6 +2014,8 @@ namespace Chroma
             LatticeInteger hh ; 
             coloring->getVec(hh, k1 + i_v);
             LatticeComplex rv = vec*hh;
+	    *v_chi[i_v] = zero;
+	    for (int row = 0; row < 2; row++){*v_psi[row][i_v] = zero;}
             for(int color_source(0);color_source<Nc;color_source++){
               LatticeColorVector vec_srce = zero ;
               pokeColor(vec_srce,rv,color_source) ;
@@ -1990,12 +2023,14 @@ namespace Chroma
               for(int spin_source=0; spin_source < Ns; ++spin_source){
                 // Insert a ColorVector into spin index spin_source
                 // This only overwrites sections, so need to initialize first
-                *v_chi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
-                CvToFerm(vec_srce, *v_chi[i_v * Ns * Nc + color_source * Ns + spin_source], spin_source);
+                //*v_chi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
+                CvToFerm(vec_srce,*v_chi[i_v],spin_source);
+                //CvToFerm(vec_srce, *v_chi[i_v * Ns * Nc + color_source * Ns + spin_source], spin_source);
                 //*v_psi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
-		for (int row=0; row < 2; row++) {*v_psi[row][i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;}
+		//for (int row=0; row < 2; row++) {*v_psi[row][i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;}
               } 
             }
+	  *g5v_chi[i_v] = Gamma(15) * *v_chi[i_v];
           }
 
 	  if (level < num_levels-1){ //level control
@@ -2053,10 +2088,21 @@ namespace Chroma
                                                                params.param.prop.fermact.path));
           Handle< FermState<T,P,Q> > state_r(S_r->createState(u));
 	  Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
-	  std::vector<SystemSolverResults_t> res_r = (*PP)(v_psi[sol], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+	  std::vector<SystemSolverResults_t> res_r;
+	  if ( sol == 0){
+	  //Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
+	  //std::vector<SystemSolverResults_t> res_r = (*PP)(v_psi[sol], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+	  res_r = (*PP)(v_psi[sol], std::vector<std::shared_ptr<const LatticeFermion>>(g5v_chi.begin(), g5v_chi.end()));
+	  for (int t = 0; t < v_psi[sol].size(); t++){
+	    *v_psi[sol][t] = Gamma(15) * *v_psi[sol][t];
+	    count[sol] += 1.0 * res_r[t].n_count;
+	  }
+	  }else if (sol == 1){
+	  res_r = (*PP)(v_psi[sol], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
           for (int t = 0; t < res_r.size(); t++){
           count[sol] += 1.0 * res_r[t].n_count;
           }
+	  }
           QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count = " << count[sol] << std::endl;
 	  sol++;
 	}
@@ -2073,9 +2119,10 @@ namespace Chroma
           // result is ADDED to db
           StopWatch swatch_dots;
           swatch_dots.start();
-	  assert(v_chi.size() == v_psi[0].size());
+	  assert(v_psi[1].size() == v_psi[0].size());
 	  DComplex cmplxshifts;
 	  cmplxshifts = cmplx(params.param.shifts[level_switch+1]-params.param.shifts[level_switch],0.0);
+	  QDPIO::cout << "Entering dot products" << std::endl;
 	  do_disco(db, v_psi[0], v_psi[1], ft, params.param.use_ferm_state_links ? state->getLinks() : u, params.param.max_path_length, cmplxshifts, dk);
           swatch_dots.stop();
           QDPIO::cout << "Computing inner products " << swatch_dots.getTimeInSeconds() << " secs"
@@ -2127,15 +2174,17 @@ namespace Chroma
 		  LatticeFermion v_eta;
 		  LatticeFermion v_tmp;
           for (int idk = 0; idk < dk; idk++){
-            for (int col = 0; col < Nc * Ns; col++){
-		   v_eta = *v_psi[0][idk * Nc * Ns + col];
+            //for (int col = 0; col < Nc * Ns; col++){
+		   //v_eta = *v_psi[0][idk * Nc * Ns + col];
+		   v_eta = *v_psi[0][idk];
 		   for (int p = 1; p < params.param.hpe_power+1; ++p){
 			D.evenHoppingOp(v_tmp, v_eta, PLUS);
 			D.oddHoppingOp(v_tmp, v_eta, PLUS);
 			v_eta = v_tmp;
 		   } //p
-		   *v_psi[0][idk * Nc * Ns + col] = v_eta;
-		  } //col
+		   //*v_psi[0][idk * Nc * Ns + col] = v_eta;
+		   *v_psi[0][idk] = v_eta;
+		 // } //col
 	    } // idk
 		do_disco(db, v_chi, v_psi[0], ft, params.param.use_ferm_state_links ? state->getLinks() : u, params.param.max_path_length);
 	  } else { //use_hpe
