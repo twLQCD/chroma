@@ -1460,10 +1460,10 @@ namespace Chroma
 	//generate a random std::vector
         LatticeComplex vec ;
         LatticeReal rnd1, theta;
-        random(rnd1);
+        //random(rnd1);
         Real twopiN = Chroma::twopi / 4;
-        theta = twopiN * floor(4*rnd1);
-        vec = cmplx(cos(theta),sin(theta));
+        //theta = twopiN * floor(4*rnd1);
+        //vec = cmplx(cos(theta),sin(theta));
 
 
 	//const int N_rhs = (param.max_rhs_interp + Ns * Nc - 1) / Ns / Nc;
@@ -1490,13 +1490,20 @@ namespace Chroma
           for (int i_v = 0 ; i_v < dk ; i_v++) {
             LatticeInteger hh ;
             coloring->getVec(hh, k1 + i_v);
-            LatticeComplex rv = vec*hh;
+            //LatticeComplex rv = vec*hh;
 	    *v_chi[i_v] = zero;
 	    for (int row = 0; row < param.num_shifts; row++){*v_psi[row][i_v] = zero;}
+	    LatticeColorVector vec_srce = zero ;
             for(int color_source(0);color_source<Nc;color_source++){
-              LatticeColorVector vec_srce = zero ;
-              pokeColor(vec_srce,rv,color_source) ;
+              //LatticeColorVector vec_srce = zero ;
+              //pokeColor(vec_srce,rv,color_source) ;
               for(int spin_source=0; spin_source < Ns; ++spin_source){
+		random(rnd1);
+		theta = twopiN * floor(4*rnd1);
+		vec = cmplx(cos(theta),sin(theta));
+		LatticeComplex rv = vec*hh;
+		vec_srce = peekSpin(*v_chi[i_v],spin_source);
+		pokeColor(vec_srce,rv,color_source);
                 // Insert a ColorVector into spin index spin_source
                 // This only overwrites sections, so need to initialize first
                 //*v_chi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
@@ -1508,7 +1515,6 @@ namespace Chroma
 	  *g5v_chi[i_v] = Gamma(15) * *v_chi[i_v];
 	  }
 
-	  
 
 	  for (int m1 = 0; m1 < param.num_shifts; m1++){
 	      QDPIO::cout << "Solving for shift number " << m1 << " while generating the variances " <<  std::endl;
@@ -1983,10 +1989,10 @@ namespace Chroma
 	//generate a random std::vector
 	LatticeComplex vec ;
 	LatticeReal rnd1, theta;
-	random(rnd1); 
+	//random(rnd1); 
 	Real twopiN = Chroma::twopi / 4; 
-	theta = twopiN * floor(4*rnd1);
-	vec = cmplx(cos(theta),sin(theta));
+	//theta = twopiN * floor(4*rnd1);
+	//vec = cmplx(cos(theta),sin(theta));
 
         // All the loops
         //const int N_rhs = (params.param.max_rhs + Ns * Nc - 1) / Ns / Nc;
@@ -2013,14 +2019,21 @@ namespace Chroma
           for (int i_v = 0 ; i_v < dk ; i_v++) {
             LatticeInteger hh ; 
             coloring->getVec(hh, k1 + i_v);
-            LatticeComplex rv = vec*hh;
+            //LatticeComplex rv = vec*hh;
 	    *v_chi[i_v] = zero;
 	    for (int row = 0; row < 2; row++){*v_psi[row][i_v] = zero;}
+	    LatticeColorVector vec_srce = zero ;
             for(int color_source(0);color_source<Nc;color_source++){
-              LatticeColorVector vec_srce = zero ;
-              pokeColor(vec_srce,rv,color_source) ;
+              //LatticeColorVector vec_srce = zero ;
+              //pokeColor(vec_srce,rv,color_source) ;
               
               for(int spin_source=0; spin_source < Ns; ++spin_source){
+		random(rnd1);
+                theta = twopiN * floor(4*rnd1);
+                vec = cmplx(cos(theta),sin(theta));
+                LatticeComplex rv = vec*hh;
+		vec_srce = peekSpin(*v_chi[i_v],spin_source);
+		pokeColor(vec_srce,rv,color_source);
                 // Insert a ColorVector into spin index spin_source
                 // This only overwrites sections, so need to initialize first
                 //*v_chi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
