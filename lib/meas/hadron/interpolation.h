@@ -196,7 +196,7 @@ InterpPow_t findP(const CostHolder_t& costs,
 
 CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<int>& dels, multi1d<int>& num_bcshifts, const bool& use_mg);
 
-std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<int>& dels, multi1d<int>& num_bcshifts, const bool& use_mg);
+std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<int>& dels, multi1d<int>& num_bcshifts, const bool& use_mg, int& disp, int& gamma);
 					  
 
 //std::vector<int> findGammaDisp(const CostHolder& costs);

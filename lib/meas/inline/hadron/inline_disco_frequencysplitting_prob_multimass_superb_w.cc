@@ -736,6 +736,60 @@ namespace Chroma
     }
 
 
+    void do_disco_hop(std::map< KeyOperator_t, ValOperator_t >& db,
+      const LatticeFermion& qbar,
+      const LatticeFermion& q,
+      const SftMom& p,
+      const multi1d<LatticeColorMatrix>& u,
+      const multi1d<int>& path,
+      const int& max_path_length ){
+      
+      const int Nt = Layout::lattSize()[3];
+
+      ValOperator_t val ;
+      KeyOperator_t key ;
+      std::pair<KeyOperator_t, ValOperator_t> kv ; 
+      if(path.size()==0){
+  kv.first.disp.resize(1);
+  kv.first.disp[0] = 0 ;
+      }
+      else
+      kv.first.disp = path ;
+
+    multi2d< multi1d<ComplexD> > foo(p.numMom(), Nt) ;
+    for (int t(0); t < Nt; t++)
+      for (int m(0); m < p.numMom(); m++)
+      foo(m,t).resize(Ns*Ns);
+      for(int g(0);g<Ns*Ns;g++){
+      LatticeComplex cc = localInnerProduct(qbar,Gamma(g)*q);
+  for (int m(0); m < p.numMom(); m++){
+          LatticeComplex pcc = p[m]*cc;
+          for (int t(0); t < Nt; t++) {
+        foo(m,t)[g] = sum(pcc,p.getSet()[t]);
+    }
+  }
+      }
+
+      for (int t(0); t < Nt; t++) {
+        kv.first.t_slice = t ;
+        for (int m(0); m < p.numMom(); m++){
+          for(int i(0);i<(Nd-1);i++)
+            kv.first.mom[i] = p.numToMom(m)[i] ;
+          
+          kv.second.op = foo(m,t);
+          std::pair<std::map< KeyOperator_t, ValOperator_t >::iterator, bool> itbo;
+
+          itbo = db.insert(kv);
+          if(!itbo.second ){
+
+            for(int i(0);i<kv.second.op.size();i++){
+              itbo.first->second.op[i] += kv.second.op[i] ;
+            }
+          }
+        }
+      }
+
+    }
 
     void do_disco_hop(std::map<KeyOperator_t, ValOperator_t>& db,
                   const std::vector<std::shared_ptr<LatticeFermion>>& qbar,
@@ -766,12 +820,12 @@ namespace Chroma
       // Construct a vector with the desired contractions
       std::vector<std::vector<int>> disps;
       //for hpe, restrict to just one displacement
-	  if (disp == 0){
-		  disps.push_back(std::vector<int>()); // no displacement
-	  }else{
-      disps.push_back(std::vector<int>(disp, 3));
-      disps.push_back(std::vector<int>(disp, -3));
-	  }
+      if (disp == 0){
+	disps.push_back(std::vector<int>()); // no displacement
+      }else{
+	disps.push_back(std::vector<int>(disp, 3));
+	disps.push_back(std::vector<int>(disp, -3));
+      }
 
       //disps.push_back(std::vector<int>()); // no displacement
      // for (int i = 1; i <= max_path_length; ++i)
@@ -1225,7 +1279,6 @@ namespace Chroma
 
       std::vector<std::shared_ptr<Coloring>> hop_coloring(param.max_path_length+1);
       for (int i = 0; i < param.max_path_length+1; i++){
-      //if (!param.hpe_probing_files[i].empty()) {
       if (param.hpe_probing_files[i] != "nofile"){
         QDPIO::cout << "Reading colors from file " << param.hpe_probing_files[i] << std::endl;
         hop_coloring[i].reset(new Coloring(param.hpe_probing_files[i]));
@@ -1324,6 +1377,139 @@ namespace Chroma
 
     } //end of exact hpe
 
+    void exactHPE2(std::map< KeyOperator_t, ValOperator_t >& db,
+                  const InlineDiscoFreqSplitProbMMSuperb::Params::Param_t& param,
+                  const multi1d<LatticeColorMatrix>& u)
+    {
+
+      typedef LatticeFermion               T;
+      typedef multi1d<LatticeColorMatrix>  P;
+      typedef multi1d<LatticeColorMatrix>  Q;
+
+      std::vector<std::shared_ptr<Coloring>> hop_coloring(param.max_path_length+1);
+      for (int i = 0; i < param.max_path_length+1; i++){
+      if (param.hpe_probing_files[i] != "nofile"){
+        QDPIO::cout << "Reading colors from file " << param.hpe_probing_files[i] << std::endl;
+        hop_coloring[i].reset(new Coloring(param.hpe_probing_files[i]));
+      } else {
+        QDPIO::cout << "Generating a " << param.hpe_power - 1 << "-distance coloring for the Hopping Term" << std::endl;
+        hop_coloring[i].reset(new Coloring(i, param.hpe_power - 1));
+      }
+      }
+
+      Real m_q0 = getMass(param.prop.fermact);
+      QDPIO::cout << "Base mass m_q0 = " << toDouble(m_q0) << std::endl;
+      std::string ferm_xml = param.prop.fermact.xml;
+      modifyMass(ferm_xml, m_q0, param.shifts[param.shifts.size()-1]);
+      QDPIO::cout << "Performing exact HPE contribution with m_q = " << toDouble(m_q0 + param.shifts[param.shifts.size()-1]) << std::endl;
+      std::istringstream xml_t(ferm_xml);
+      XMLReader fermacttop(xml_t);
+
+      Handle< FermionAction<T,P,Q> >
+              S_f(TheFermionActionFactory::Instance().createObject(param.prop.fermact.id,
+                                                               fermacttop,
+                                                               param.prop.fermact.path));
+      Handle< FermState<T,P,Q> > state(S_f->createState(u));
+
+      EvenOddPrecCloverLinOp D;
+      CloverFermActParams clov_params(fermacttop, param.prop.fermact.path);
+      D.create(state, clov_params);
+
+      int decay_dir           = Nd-1 ;
+      SftMom ft = param.use_p_list ? SftMom(param.p_list, decay_dir) : SftMom(param.p2_max, false, decay_dir);
+
+      multi1d<int> new_path_d;
+      multi1d<int> path_d;
+
+      for (int disp = 0; disp < param.max_path_length+1; disp++){
+      int Nvecs = hop_coloring[disp]->numColors();
+      const int N_v = (param.max_rhs + Ns * Nc - 1) / Ns / Nc;
+
+      QDPIO::cout << Nvecs << " colors for the hopping term trace calculation for Displacement " << disp << std::endl;
+
+      
+      QDPIO::cout<<"Now computing the hopping contribution"<<std::endl;
+     for (int k1 = 0, dk = std::min(Nvecs, N_v); k1 < Nvecs ; k1 += dk, dk = std::min(Nvecs - k1, N_v)) {
+
+    LatticeFermion source, psi, chi, eta, tmp;
+
+        for (int i_v = 0 ; i_v < dk ; i_v++) {
+      LatticeInteger hh ;
+      hop_coloring[disp]->getVec(hh, k1 + i_v);
+      LatticeReal a = 1.0;
+      LatticeComplex rv = cmplx(a * hh, 0);
+      for(int color_source(0);color_source<Nc;color_source++){
+          LatticeColorVector vec_srce = zero ;
+          pokeColor(vec_srce,rv,color_source) ;
+          for(int spin_source=0; spin_source < Ns; ++spin_source){
+
+	source = zero; psi = zero; chi = zero; eta = zero; tmp = zero;
+
+	CvToFerm(vec_srce, source, spin_source);
+
+
+	D.evenEvenInvLinOp(eta, source, PLUS);
+	D.oddOddInvLinOp(eta, source, PLUS);
+	psi = eta;
+	chi = eta;
+	for (int p = 1; p < param.hpe_power; ++p){
+
+
+	    D.oddHoppingOp(tmp, chi, PLUS);
+	    D.evenHoppingOp(tmp, chi, PLUS);
+	    chi = tmp;
+	    psi += tmp;
+	}
+            LatticeFermion q; 
+            if (disp != 0){
+	for(int sign(-1);sign<2;sign+=2){
+	    for(int mu(2);mu<3;mu++){
+	  for( int i = 0; i < new_path_d.size() ; i++){
+	      new_path_d[i] = sign*(mu+1);
+	  }
+
+	  q = psi;
+	    LatticeFermion q_mu;
+	    for (int k = 1; k < disp+1; k++){
+	        if (param.use_ferm_state_links){
+	      do_shift(q_mu, q, state->getLinks(), mu, sign);
+	        } else {
+	      do_shift(q_mu, q, u, mu, sign);
+	        }
+	         q = q_mu;
+	    }
+	
+
+	    if (param.use_ferm_state_links){
+	        do_disco_hop(db, source, q, ft, state->getLinks(), new_path_d, param.max_path_length);
+	    }else{
+	        do_disco_hop(db, source, q, ft, u, new_path_d, param.max_path_length); 
+	    }
+  
+
+	    } 
+
+
+            } 
+	 
+	 } else { 
+	    if (param.use_ferm_state_links){
+	    do_disco_hop(db, source, psi, ft, state->getLinks(), new_path_d, param.max_path_length);
+	     }else{
+	    do_disco_hop(db, source, psi, ft, u, new_path_d, param.max_path_length);
+	    }
+	}
+
+	} 
+           } 
+        } 
+          } 
+       if (new_path_d.size() < param.max_path_length){
+       new_path_d.resize(new_path_d.size()+1);
+      }
+  } //disp
+
+  } //end of func
 
     std::vector<MinCosts_t> getOptimalShifts(InlineDiscoFreqSplitProbMMSuperb::Params::Param_t& param, const multi1d<LatticeColorMatrix>& u)
     {
@@ -1575,10 +1761,12 @@ namespace Chroma
             costs.level_costs[t] = level_sum[t] / (noise + 1);
         }
 
-
-        QDPIO::cout << "Retrieving product and single variances " << std::endl;
-        costs.rs_variances = retrieve_variances(dbrs_mean, dbrs_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
-        costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
+	for (int k = 0; k < param.max_path_length+1; ++k){
+        QDPIO::cout << "Retrieving product and single variances for displacement " << k << " and Gamma " << param.gamma_disp[1] <<  std::endl;
+        //costs.rs_variances = retrieve_variances(dbrs_mean, dbrs_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
+        costs.rs_variances = retrieve_variances(dbrs_mean, dbrs_var, 1, noise+1, param.num_shifts, k, param.gamma_disp[1]);
+        //costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
+        costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, k, param.gamma_disp[1]);
 
 
 	//make sure all nodes get the same data
@@ -1594,10 +1782,11 @@ namespace Chroma
 
 	//here is the call for interpolation
 	if (noise > 0){
-	mincosts = getMinShifts(costs, param.del_s, param.num_bcshifts, param.use_mg);
-	QDPIO::cout << "Cost for regular calculation of Disp = " << param.gamma_disp[0] << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
+	mincosts = getMinShifts(costs, param.del_s, param.num_bcshifts, param.use_mg, k, param.gamma_disp[1]);
+	//QDPIO::cout << "Cost for regular calculation of Disp = " << param.gamma_disp[0] << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
+	QDPIO::cout << "Cost for regular calculation of Disp = " << k  << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
 	}
-
+      } //k
     
     //Need to report the cost of the original calculation (D^{-1}) to report speedups
     for (int k = 0; k < param.max_path_length+1; ++k){

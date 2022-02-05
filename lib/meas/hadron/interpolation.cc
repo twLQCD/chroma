@@ -980,7 +980,7 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<int>& dels
 
 }
 
-std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<int>& dels, multi1d<int>& num_bcshifts, const bool& use_mg)
+std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<int>& dels, multi1d<int>& num_bcshifts, const bool& use_mg, int& disp, int& gamma)
 {
 	//QDPIO::cout << "In getMinShifts" << std::endl;
 	std::vector<MinCosts_t> stats;
@@ -996,7 +996,7 @@ std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<int>& de
 	QDPIO::cout << int_costs.rs_variances[i][j] << std::endl;
 	}
 	}
-
+	QDPIO::cout << "Finding the minimum shifts for Displacement = " << disp << " and Gamma = " << gamma << std::endl; 
 	for (int i = 0; i < 6; i++){
 		stats[i] = findMinShifts(i+1,int_costs);
 	}

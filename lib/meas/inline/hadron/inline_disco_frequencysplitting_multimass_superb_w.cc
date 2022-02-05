@@ -309,6 +309,8 @@ namespace Chroma
          read(inputtop,"test_shift_data",param.test_shift_data);
       }
 
+	 
+
   }
     //! Propagator output
     void write(XMLWriter& xml, const std::string& path, const InlineDiscoFreqSplitMMSuperb::Params::Param_t& param)
@@ -1407,6 +1409,7 @@ namespace Chroma
     int Nsrc = coloring->numColors();
     QDPIO::cout << "num colors " << Nsrc << std::endl;
     QDPIO::cout << "Optimizing z Displacement  = " << param.gamma_disp[0] << " and Gamma = " << param.gamma_disp[1] << std::endl;
+
     //set to the original mass
     modifyMass(param.prop.fermact.xml, tmpmass, param.shifts[0]);
     modifyMass(param.prop.invParam.xml, tmpmass, param.shifts[0]);
@@ -1623,10 +1626,13 @@ namespace Chroma
             costs.level_costs[t] = level_sum[t] / (noise + 1);
         }
 
-
-        QDPIO::cout << "Retrieving product and single variances " << std::endl;
-        costs.rs_variances = retrieve_variances(dbrs_mean, dbrs_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
-        costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
+	for (int k = 0; k < param.max_path_length+1; ++k){
+        //QDPIO::cout << "Retrieving product and single variances " << std::endl;
+         QDPIO::cout << "Retrieving product and single variances for displacement " << k << " and Gamma " << param.gamma_disp[1] <<  std::endl;
+//        costs.rs_variances = retrieve_variances(dbrs_mean, dbrs_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
+	 costs.rs_variances = retrieve_variances(dbrs_mean, dbrs_var, 1, noise+1, param.num_shifts, k, param.gamma_disp[1]);
+//        costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
+	costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, k, param.gamma_disp[1]);
 
 
 	//make sure all nodes get the same data
@@ -1642,10 +1648,11 @@ namespace Chroma
 
 	//here is the call for interpolation
 	if (noise > 0){
-	mincosts = getMinShifts(costs, param.del_s, param.num_bcshifts, param.use_mg);
-	QDPIO::cout << "Cost for regular calculation of Disp = " << param.gamma_disp[0] << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
+	mincosts = getMinShifts(costs, param.del_s, param.num_bcshifts, param.use_mg, k, param.gamma_disp[1]);
+	//QDPIO::cout << "Cost for regular calculation of Disp = " << param.gamma_disp[0] << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
+	QDPIO::cout << "Cost for regular calculation of Disp = " << k  << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
 	}
-
+    } //k
     
     //Need to report the cost of the original calculation (D^{-1}) to report speedups
     for (int k = 0; k < param.max_path_length+1; ++k){
@@ -1850,6 +1857,7 @@ namespace Chroma
        
 
       if (!params.param.debug){
+
 
       std::shared_ptr<Coloring> coloring;
       if (!params.param.probing_file.empty()) {
