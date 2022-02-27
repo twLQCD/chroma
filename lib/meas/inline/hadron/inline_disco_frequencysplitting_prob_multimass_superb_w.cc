@@ -184,39 +184,6 @@ namespace Chroma
         param.use_mg = false;
     }
 
-    if (inputtop.count("num_test_shifts_across")!=0){
-       read(inputtop,"num_test_shifts_across",param.num_test_shifts_across);
-       }else{
-       param.num_test_shifts_across = param.num_shifts - 1;
-   }
-
-    if(inputtop.count("test_shifts_across")!=0){
-      read(inputtop,"test_shifts_across",param.test_shifts_across);
-      }else{
-       //if you dont have some test shifts, supply with default values;
-       param.test_shifts_across.resize(param.num_shifts-1);
-       param.test_shifts_across[0] = 0.001;
-       param.test_shifts_across[1] = 0.01;
-       param.test_shifts_across[2] = 0.1;
-       param.test_shifts_across[3] = 0.6;
-    }
-
-    if(inputtop.count("num_test_shifts_down")!=0){
-      read(inputtop,"num_test_shifts_down",param.num_test_shifts_down);
-      if (param.num_test_shifts_down != param.num_test_shifts_across){
-	 QDPIO::cout << "You must have the same number of test shifts down as you do across" << std::endl;
-	 QDP_abort(1);
-      }
-      }else{
-      param.num_test_shifts_down = param.num_test_shifts_across;
-    }
-
-    if (inputtop.count("test_shifts_down")!=0){
-       read(inputtop,"test_shifts_down",param.test_shifts_down);
-       }else{
-       param.test_shifts_down.resize(param.num_test_shifts_across);
-       param.test_shifts_down = param.test_shifts_across;
-    }
 
       if(inputtop.count("noise_vectors")!=0){
         read(inputtop,"noise_vectors",param.noise_vectors) ;
@@ -234,8 +201,8 @@ namespace Chroma
        //you get logspace shifts in regions
        //10^-4 -> 10^-3, 10^-3 -> 10^-2, 10^-2 -> 1
        param.del_s.resize(4);
-       param.del_s[0] = -4; param.del_s[1] = -3; param.del_s[2] = -2; 
-       param.del_s[3] = 0;
+       param.del_s[0] = -4.0; param.del_s[1] = -3.0; param.del_s[2] = -2.0; 
+       param.del_s[3] = 0.0;
       }
 
       if (inputtop.count("num_bcshifts")!=0){
@@ -302,12 +269,19 @@ namespace Chroma
 	 read(inputtop,"debug",param.debug);
       }
   
-      if (inputtop.count("test_var_data")!=0){
-	 read(inputtop,"test_var_data",param.test_var_data);
+
+      if (inputtop.count("interp_checkpoint")!=0){
+	  read(inputtop,"interp_checkpoint",param.interp_restart);
+      }else{
+	  param.interp_restart = false;
       }
-      if (inputtop.count("test_shift_data")!=0){
-         read(inputtop,"test_shift_data",param.test_shift_data);
+
+      if (inputtop.count("trace_checkpoint")!=0){
+          read(inputtop,"trace_checkpoint",param.trace_restart);
+      }else{
+          param.trace_restart = false;
       }
+
 
   }
     //! Propagator output
@@ -386,7 +360,7 @@ namespace Chroma
     {
       os << "KeyOperator_t:"
          << " t_slice = " << d.t_slice
-         << ", disp = ";
+         << " , disp = ";
       for (int i=0; i<d.disp.size();i++){
         os << d.disp[i] << " " ;
       }
@@ -503,6 +477,228 @@ namespace Chroma
     {
       return detox_aux<T>::get(e);
     }
+
+    struct Restart_t {
+
+      int level;
+      int noise;
+      //int prob_int;
+      int num_levels;
+      //QDP::Seed rng_seed;
+      std::vector<double> count = std::vector<double>(2);
+      std::vector<double> level_cost; //needs to be resized!!!
+      std::vector<double> shifts; //needs to be resized!!!
+      std::map<KeyOperator_t, ValOperator_t> db_trace;
+      std::map<KeyOperator_t, ValOperator_t> db_var;
+
+    };
+
+    void send_to_nodes(Restart_t restart)
+    {
+    QDPIO::cin >> restart.level;
+    QDPIO::cin >> restart.noise;
+    QDPIO::cin >> restart.num_levels;
+    QDPIO::cin >> restart.count[0];
+    QDPIO::cin >> restart.count[1];
+    for (int i = 0; i < restart.level_cost.size(); i++){
+	QDPIO::cin >> restart.level_cost[i];
+    }
+
+
+    }
+
+    void restart_seed_out(const std::string& filename, const QDP::Seed& rng_seed)
+    {
+
+    QDP::TextFileWriter out(filename);
+    out << rng_seed;
+    out.close();
+    
+    }
+
+    QDP::Seed restart_seed_in(const std::string& filename)
+    {
+    
+    QDP::TextFileReader in(filename);
+    QDP::Seed tmp;
+    in >> tmp;
+    in.close();
+    return tmp; 
+    }
+
+    void assign_KeyOperator(std::string& str, KeyOperator_t& keyop)
+    {
+
+      std::vector<std::string> out_string;
+      std::string delim = " ";
+      size_t pos = 0;
+      std::string substring;
+      while ((pos = str.find(delim)) != std::string::npos) {
+	    substring = str.substr(0, pos);
+	    out_string.push_back(substring);
+	    str.erase(0, pos+delim.length());
+      }
+      out_string.push_back(str);
+     
+      std::string key = "t_slice";
+      auto loc = std::find(out_string.begin(), out_string.end(), key);
+      keyop.t_slice = std::stoi(out_string[std::distance(out_string.begin(), loc)+2]);
+      key = "disp";
+      loc = std::find(out_string.begin(), out_string.end(), key);
+      key = "mom";
+      auto loc2 = std::find(out_string.begin(), out_string.end(), key);
+      std::vector<int> tmpdisp;
+      for (int i = std::distance(out_string.begin(), loc)+2; i <= std::distance(out_string.begin(), loc2)-2; i++){
+	  tmpdisp.push_back(std::stoi(out_string[i]));
+      }
+      keyop.disp.resize(tmpdisp.size());
+      for (int i = 0; i < keyop.disp.size(); i++){
+	  keyop.disp[i] = tmpdisp[i];
+      }
+      std::vector<int> tmpmom;
+      for (int i = std::distance(out_string.begin(), loc2)+2; i < out_string.size()-1; i++){
+	tmpmom.push_back(std::stoi(out_string[i]));
+      }
+      keyop.mom.resize(tmpmom.size());
+      for (int i = 0; i < keyop.mom.size(); i++){
+	keyop.mom[i] = tmpmom[i];
+      }
+    }
+
+    Restart_t checkpoint_in(const std::string& tracefile, const std::string& varfile, const int& max_path_length)
+
+    {
+    
+    const int Nt = Layout::lattSize()[3];
+    Restart_t restart;
+    std::string line_t;
+    std::string line_v;
+    std::ifstream file_trace;
+    file_trace.open(tracefile, std::ios::in);
+    std::ifstream file_var;
+    file_var.open(varfile, std::ios::in);
+    if (!file_trace.is_open()){
+       QDPIO::cout << "Could not open trace checkpoint file...aborting" << std::endl;
+       QDP_abort(1);
+    }
+    if (!file_var.is_open()){
+       QDPIO::cout << "Could not open variance checkpoint file...aborting" << std::endl;
+       QDP_abort(1);
+    }
+    getline(file_trace,line_t);
+    restart.level = stoi(line_t);
+    getline(file_trace,line_t);
+    restart.noise = stoi(line_t);
+    getline(file_trace,line_t);
+    restart.num_levels = stoi(line_t);
+    getline(file_trace,line_t);
+    restart.count[0] = stod(line_t);
+    getline(file_trace,line_t);
+    restart.count[1] = stod(line_t);
+    restart.level_cost.resize(restart.num_levels);
+    restart.shifts.resize(restart.num_levels);
+    for (int i = 0; i < restart.level_cost.size(); i++){
+	getline(file_trace,line_t);
+	restart.level_cost[i] = stod(line_t);
+    }
+    for (int i = 0; i < restart.shifts.size(); i++){
+	getline(file_trace,line_t);
+	restart.shifts[i] = stod(line_t);
+    }
+    QDPIO::cout << "Restart params read in successfully" << std::endl;
+    for (int i = 0; i < (2*max_path_length+1)*Nt; i++){
+	std::pair<KeyOperator_t, ValOperator_t> kv ;
+	std::pair<KeyOperator_t, ValOperator_t> kvv ;
+	getline(file_trace,line_t);
+	getline(file_var,line_v);
+	assign_KeyOperator(line_t, kv.first);
+	assign_KeyOperator(line_v, kvv.first);
+	getline(file_trace,line_t);
+	getline(file_var,line_v);
+        auto it = restart.db_trace.find(kv.first);
+        if (it == restart.db_trace.end()){ it = restart.db_trace.insert(kv).first; }
+        auto itv = restart.db_var.find(kvv.first);
+        if (itv == restart.db_var.end()) {itv = restart.db_var.insert(kvv).first;}
+
+	for (int g = 0; g < Ns * Ns; g++){
+	    getline(file_trace,line_t);
+	    getline(file_var,line_v);
+#ifdef QDP_IS_QDPJIT
+	    it->second.op[g].elem().elem().elem().real().elem() = stod(line_t);
+	    itv->second.op[g].elem().elem().elem().real().elem() = stod(line_v);
+	    getline(file_trace,line_t);
+	    getline(file_var,line_v);
+	    it->second.op[g].elem().elem().elem().imag().elem() = stod(line_t);
+	    itv->second.op[g].elem().elem().elem().imag().elem() = stod(line_v);
+#else
+	    it->second.op[g].elem().elem().elem().real() = stod(line_t);
+	    itv->second.op[g].elem().elem().elem().real() = stod(line_v);
+	    getline(file_trace,line_t);
+	    getline(file_var,line_v);
+	    it->second.op[g].elem().elem().elem().imag() = stod(line_t);
+	    itv->second.op[g].elem().elem().elem().imag() = stod(line_v);
+#endif
+	}
+	
+      }
+      QDPIO::cout << "Traces and variances read in successfully" << std::endl;
+
+    
+    
+
+
+    //} //nodelist
+
+    return restart;
+    } //func
+
+    void checkpoint_out(const int& level, const int& noise, const QDP::Seed& rng_seed,
+			const int& num_levels, const std::vector<double> level_cost,
+			const std::vector<double>& count, multi1d<Real>& shifts, std::map<KeyOperator_t, ValOperator_t>& db_trace,
+      			const std::map<KeyOperator_t, ValOperator_t>& db_var, const std::string& tracefile, const std::string& varfile)
+    {
+
+    int nodelist = Layout::nodeNumber();
+    //only master node writes to file
+    if (nodelist == 0){
+    std::ofstream file_trace;
+    std::ofstream file_var;
+    file_trace.open(tracefile, std::ios::out);
+    file_var.open(varfile, std::ios::out);
+    if (file_trace.is_open() && file_var.is_open()){
+        file_trace << level << '\n';
+	file_trace << noise << '\n';
+	file_trace << num_levels << '\n';
+	for (auto i : count){ file_trace << i << '\n'; }
+	for (auto i : level_cost){ file_trace << i << '\n'; }
+	for (int i = 0; i < shifts.size(); i++) { file_trace << shifts[i] << std::endl; }
+	std::map< KeyOperator_t, ValOperator_t >::const_iterator itv = db_var.begin();
+	for (std::map< KeyOperator_t, ValOperator_t >::const_iterator it=db_trace.begin(); it != db_trace.end(); it++) {
+	    file_trace << it->first << '\n';
+	    file_var << itv->first << '\n';
+	    for (int g = 0; g < Ns * Ns; g++){
+#ifdef QDP_IS_QDPJIT
+		file_trace << it->second.op[g].elem().elem().elem().real().elem() << '\n';
+		file_trace << it->second.op[g].elem().elem().elem().imag().elem() << '\n';
+		file_var << itv->second.op[g].elem().elem().elem().real().elem() << '\n';
+		file_var << itv->second.op[g].elem().elem().elem().imag().elem() << '\n';
+		
+#else
+		file_trace << it->second.op[g].elem().elem().elem().real() << '\n';
+		file_trace << it->second.op[g].elem().elem().elem().imag() << '\n';
+		file_var << itv->second.op[g].elem().elem().elem().real() << '\n';
+		file_var << itv->second.op[g].elem().elem().elem().imag() << '\n';
+#endif
+	    } //g
+	    itv++;
+	} //it
+
+    } //is_open
+    file_trace.close();
+    file_var.close();
+    } //node
+
+    } //func
 
     void do_disco(std::map<KeyOperator_t, ValOperator_t>& db,
 		  const std::vector<std::shared_ptr<LatticeFermion>>& qbar,
@@ -953,9 +1149,6 @@ namespace Chroma
     std::vector<std::vector<double>> out_vars(num_shifts, std::vector<double>(num_shifts));
     //out_vars.resize(num_shifts, std::vector<double>(num_shifts));
     for (int ii = 0; ii < num_shifts; ii++){
-	//old
-	//for (int j = ii+1; j < num_shifts; j++){
-	//new
 	for (int j = ii; j < num_shifts; j++){
   
 	 std::map<KeyOperator_t, std::vector<double>> dbvar_avg;
@@ -1616,12 +1809,71 @@ namespace Chroma
       int pos;
       std::vector<double> level_sum;
       level_sum.resize(param.num_shifts);
-      for (int noise = 0; noise < param.num_samples; noise++){
+      std::vector<double> count(2); //for checkpoint
+      int level = 0; //for checkpoint
+
+      Restart_t restart;
+      QDP::Seed rng_seed;
+      QDP::RNG::savern(rng_seed);
+      std::string seed_file = "current_seed_" + param.mass_label + "_" + param.probing_file;
+      if (param.interp_restart && param.use_interpolation){
+        for (int i = 0; i < param.num_shifts; i++){
+	for (int j = i; j < param.num_shifts; j++){
+
+	//this does all the product terms
+        std::string filename_traces = "interp_traces_shifts_" + std::to_string(i) + std::to_string(j) + "_" + param.mass_label + "_" + param.probing_file;
+        std::string filename_vars = "interp_variances_shifts_" + std::to_string(i) + std::to_string(j) + "_" + param.mass_label + "_" + param.probing_file;
+        std::ifstream file_t;
+        std::ifstream file_v;
+        file_t.open(filename_traces, std::ios::in);
+        file_v.open(filename_vars, std::ios::in);
+        if (file_t && file_v){
+        QDPIO::cout << "Trace and Variance checkpoint files exist. Reading in the values." << std::endl;
+        file_t.close();
+        file_v.close();
+        restart = checkpoint_in(filename_traces, filename_vars, param.max_path_length);
+        dbrs_mean[i][j] = restart.db_trace;
+        dbrs_var[i][j] = restart.db_var;
+        level_sum = restart.level_cost;
+        } //file
+	} //j
+	
+	//this does the single terms
+	std::string filename_traces = "interp_traces_shifts_" + std::to_string(i) + "_" + param.mass_label + "_" + param.probing_file;
+        std::string filename_vars = "interp_variances_shifts_" + std::to_string(i) + "_" + param.mass_label + "_" + param.probing_file;
+        std::ifstream file_t;
+        std::ifstream file_v;
+        file_t.open(filename_traces, std::ios::in);
+        file_v.open(filename_vars, std::ios::in);
+        if (file_t && file_v){
+        QDPIO::cout << "Trace and Variance checkpoint files exist. Reading in the values." << std::endl;
+        file_t.close();
+        file_v.close();
+        restart = checkpoint_in(filename_traces, filename_vars, param.max_path_length);
+        dbr_mean[i] = restart.db_trace;
+        dbr_var[i] = restart.db_var;
+	level_sum = restart.level_cost;
+	}//file
+        } //i
+        rng_seed = restart_seed_in(seed_file);
+        QDP::RNG::setrn(rng_seed);
+        QDPIO::cout << "Seed " << rng_seed << " has been set" << std::endl;
+      }else{
+        restart.level = 0;
+        restart.noise = 0;
+      }
+
+
+
+      //for (int noise = 0; noise < param.num_samples; noise++){
+      int noise;
+      for ( param.interp_restart ? noise = restart.noise+1 : noise = 0; noise < param.num_samples; noise++){ 
 	  MatMap dbrs(param.num_shifts, VecMap(param.num_shifts));;
 	  VecMap dbr(param.num_shifts);
 
 	  QDPIO::cout << " Doing noise vector " << noise  << std::endl;
-	  
+	
+  
 	//generate a random std::vector
         LatticeComplex vec ;
         LatticeReal rnd1, theta;
@@ -1681,11 +1933,6 @@ namespace Chroma
 		      level_sum[m1] += 1.0 * res[t].n_count;
 		  }
 
-	      //std::string subspace_id = retrieveSubspaceId(param.prop.invParam.xml);
-	      //if( TheNamedObjMap::Instance().check(subspace_id) ) {
-		//QDPIO::cout << "  ... Subspace ID found... Deleting" <<std::endl;
-		//TheNamedObjMap::Instance().erase(subspace_id);
-	      //}
 
 	   }
 
@@ -1749,11 +1996,19 @@ namespace Chroma
 
 	QDPIO::cout << "Updating the dbs " << std::endl;
         for (int m1 = 0; m1 < param.num_shifts; m1++){
-	    do_update(dbr_mean[m1], dbr_var[m1], dbr[m1], noise == 0);
 	    for (int m2 = m1; m2 < param.num_shifts; m2++){
 	    do_update(dbrs_mean[m1][m2], dbrs_var[m1][m2], dbrs[m1][m2], noise == 0);
+	    std::string filename_traces = "interp_traces_shifts_" + std::to_string(m1) + std::to_string(m2) + "_" + param.mass_label + "_" + param.probing_file;
+	    std::string filename_vars = "interp_variances_shifts_" + std::to_string(m1) + std::to_string(m2) + "_" + param.mass_label + "_" + param.probing_file;
+	    checkpoint_out(level, noise, rng_seed, param.num_shifts, level_sum, count, param.shifts, dbrs_mean[m1][m2], dbrs_var[m1][m2], filename_traces, filename_vars);
 	    }
+	    do_update(dbr_mean[m1], dbr_var[m1], dbr[m1], noise == 0);
+	    std::string filename_traces = "interp_traces_shifts_" + std::to_string(m1) + "_" + param.mass_label + "_" + param.probing_file;
+	    std::string filename_vars = "interp_variances_shifts_" + std::to_string(m1) + "_" + param.mass_label + "_" + param.probing_file;
+	    checkpoint_out(level, noise, rng_seed, param.num_shifts, level_sum, count, param.shifts, dbr_mean[m1], dbr_var[m1], filename_traces, filename_vars);
 	}
+        QDP::RNG::savern(rng_seed);
+        restart_seed_out(seed_file, rng_seed);
 
 
 	//need to divide the costs by the current number of noise vectors to get one sample variance
@@ -1770,15 +2025,12 @@ namespace Chroma
 
 
 	//make sure all nodes get the same data
-	//int nodelist = Layout::nodeNumber();
-	//if (nodelist == 0){
 	   for (int i = 0; i < costs.r_variances.size(); i++){
 	       QDPIO::cin >> costs.r_variances[i];
 	       for (int j = 0; j < costs.rs_variances[i].size(); j++){
 	       QDPIO::cin >> costs.rs_variances[i][j];
 	       }
 	    }
-	//}
 
 	//here is the call for interpolation
 	if (noise > 0){
@@ -1942,8 +2194,15 @@ namespace Chroma
       write(xml_out, "out_version", 1);
       pop(xml_out);
 
+
+        QDP::Seed rng_seed;
+        QDP::RNG::savern(rng_seed);
+        QDPIO::cout << "The seed before setup is  " << rng_seed << std::endl;
+
       // Calculate some gauge invariant observables just for info.
       MesPlq(xml_out, "Observables", u);
+
+      
 
       //get the initial mass before anything!!
       Real m_qi = getMass(params.param.prop.fermact);
@@ -1978,15 +2237,6 @@ namespace Chroma
       
       }//use_interpolation
 
-      /*int numnodes = (Layout::vol())/(Layout::sitesOnNode());
-      for (int n = 0; n < numnodes; n++){
-	if (n == nodelist){
-	   std::cout << "I am node " << n << " and my shifts are : " << std::endl;
-	   for (int j = 0; j < params.param.shifts.size(); j++){
-		std::cout << params.param.shifts[j].elem() << std::endl;
-	   }
-	}
-      }*/
        
 
       if (!params.param.debug){
@@ -2017,7 +2267,87 @@ namespace Chroma
       StopWatch swatch;
       swatch.start();
 
-      // Do the exact part of the trace for HPE.
+	  
+      //reset the mass
+      modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[0]);
+      Complex NOne;
+      Real a;
+      a = -1.0;
+      NOne = cmplx(a,0.0);
+      //int num_levels = params.param.shifts.size();
+      //QDPIO::cout << "Number of levels is " << num_levels << std::endl;
+      int num_levels;
+      int level_switch;
+
+      StatHolder_t dbs;
+      //dbs.levels_var.resize(num_levels);
+      //dbs.levels_avg.resize(num_levels);
+      //std::vector<double> cl(num_levels);
+      std::vector<double> cl;
+
+          modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[0]);
+          modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[0]);
+          std::istringstream  xml_s(params.param.prop.fermact.xml);
+          XMLReader  fermactr(xml_s);
+          Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
+                                                               fermactr,
+                                                               params.param.prop.fermact.path));
+          Handle< FermState<T,P,Q> > state(S_s->createState(u));
+      Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state, params.param.prop.invParam);
+
+      //will never be above 7 (for now) so I am ok with this for the time being
+      int max_num_levels = 7;
+
+      //if using a checkpoint, this block will be used
+      //this whole thing needs to be redone, but it works....
+      Restart_t restart;
+      QDP::Seed rng_seed;
+      QDP::RNG::savern(rng_seed);
+      std::string seed_file = "current_seed_" + params.param.mass_label + "_" + params.param.probing_file;
+      if (params.param.trace_restart){
+	for (int i = 0; i < max_num_levels; i++){
+	std::string filename_traces = "traces_level_" + std::to_string(i) + "_" + params.param.mass_label + "_" + params.param.probing_file;
+	std::string filename_vars = "variances_level_" + std::to_string(i) + "_" + params.param.mass_label + "_" + params.param.probing_file;
+	std::ifstream file_t;
+	std::ifstream file_v;
+	file_t.open(filename_traces, std::ios::in);
+	file_v.open(filename_vars, std::ios::in);
+	if (file_t && file_v){
+	QDPIO::cout << "Trace and Variance checkpoint files exist. Reading in the values." << std::endl;
+	file_t.close();
+	file_v.close();
+	restart = checkpoint_in(filename_traces, filename_vars, params.param.max_path_length);
+  
+	//dbs.levels_avg[i] = restart.db_trace;
+	//dbs.levels_var[i] = restart.db_var;
+	dbs.levels_avg.push_back(restart.db_trace);
+	dbs.levels_var.push_back(restart.db_var);
+
+	//show_stats(dbs.levels_avg[i], dbs.levels_var[i], dbdet, 1, restart.noise+1, restart.level);
+	cl = restart.level_cost;
+	} //file
+	} //i
+	rng_seed = restart_seed_in(seed_file);
+	num_levels = restart.num_levels;
+	params.param.shifts.resize(num_levels);
+	std::map<KeyOperator_t, ValOperator_t> db;
+	for (int i = restart.level+1; i < restart.num_levels; i++){
+	    dbs.levels_var.push_back(db);
+	    dbs.levels_avg.push_back(db);
+	}
+	for (int i = 0; i < num_levels; i++){ params.param.shifts[i].elem() = restart.shifts[i]; }
+	QDP::RNG::setrn(rng_seed);
+	QDPIO::cout << "Seed " << rng_seed << " has been set" << std::endl;
+      }else{
+	restart.level = 0;
+	restart.noise = 0;
+	num_levels = params.param.shifts.size();
+	cl.resize(num_levels);
+	dbs.levels_var.resize(num_levels);
+	dbs.levels_avg.resize(num_levels);
+      }
+
+      //do the exact part of the HPE
       std::map< KeyOperator_t, ValOperator_t > dbdet;
       if(params.param.use_hpe){
       QDPIO::cout<<"Now computing the exact HPE contribution"<<std::endl;
@@ -2029,9 +2359,9 @@ namespace Chroma
       }
 
 
-      //reset the mass just in case
+      //reset the mass
       modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[0]);
-      //now set it to the last shift
+      //set the mass to the last shift
       modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[params.param.shifts.size()-1]);
       EvenOddPrecCloverLinOp D;
       if (params.param.use_hpe){
@@ -2045,43 +2375,9 @@ namespace Chroma
       D.create(state_r, clov_params);
       }
 
-      // Loop over the source color and spin, creating the source
-      // and calling the relevant propagator routines.
-      //std::map< KeyOperator_t, ValOperator_t > dbmean, dbvar;
-	  
-      //reset the mass
-      modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[0]);
-      Complex NOne;
-      Real a;
-      a = -1.0;
-      NOne = cmplx(a,0.0);
-      int num_levels = params.param.shifts.size();
-      QDPIO::cout << "Number of levels is " << num_levels << std::endl;
-      int level_switch;
 
-      StatHolder_t dbs;
-      dbs.levels_var.resize(num_levels);
-      dbs.levels_avg.resize(num_levels);
-      std::vector<double> cl(num_levels);
 
-      //since we are using two multigrids at once, but only one propagator tag
-      //need to copy the params.param.invParam, and rename the subspace
-      //ChromaProp_t prop_s = params.param.prop;
-      //some function to replace the subspaceid tag in prop_s.invParam.xml
-      //
-      //std::string mod = "s";
-      //modifySubspaceId(prop_s.invParam.xml, mod);
-
-          modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[0]);
-          modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[0]);
-          std::istringstream  xml_s(params.param.prop.fermact.xml);
-          XMLReader  fermactr(xml_s);
-          Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
-                                                               fermactr,
-                                                               params.param.prop.fermact.path));
-          Handle< FermState<T,P,Q> > state(S_s->createState(u));
-
-      for (int level = 0; level < num_levels; level++){
+      for (int level = restart.level; level < num_levels; level++){
 	
 	if (level < num_levels-1){
 	    level_switch = level;
@@ -2089,42 +2385,26 @@ namespace Chroma
 	    level_switch = level - 1;
 	}
 	QDPIO::cout << "On level : " << level << std::endl;
+	std::string filename_traces = "traces_level_" + std::to_string(level) + "_" + params.param.mass_label + "_" + params.param.probing_file;
+	std::string filename_vars = "variances_level_" + std::to_string(level) + "_" + params.param.mass_label + "_" + params.param.probing_file;
 	QDPIO::cout << "Computing with shifts " << params.param.shifts[level_switch] << " and " << params.param.shifts[level_switch+1] << std::endl;
-	//modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch]);
-        //std::istringstream  xml_r(params.param.prop.fermact.xml);
-        //XMLReader  fermactr(xml_r);
-
-        //Handle< FermionAction<T,P,Q> > S_r(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
-        //                                                       fermactr,
-        //                                                       params.param.prop.fermact.path));
-        //Handle< FermState<T,P,Q> > state_r(S_r->createState(u));
-
-	//modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
-        //Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
-
-
-	/*modifyMass(prop_s.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
-        std::istringstream  xml_s(prop_s.fermact.xml);
-        XMLReader  fermacts(xml_s);
-
-	
-        Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(prop_s.fermact.id,
-                                           fermacts, prop_s.fermact.path));
-        Handle< FermState<T,P,Q> > state_s(S_s->createState(u));	
-
-	modifyMass(prop_s.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
-        Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state_s, prop_s.invParam); */
 
 	double count_r = 0.0;
 	double count_s = 0.0;
 	std::vector<double> count(2);
+	if (params.param.trace_restart && level == restart.level){
+	   count = restart.count;
+	}
 	//count.resize(2);
 	
-
-	for (int noise = 0 ; noise < params.param.noise_vectors[level]; noise++) {
+	int noise;
+	//for (int noise = restart.noise ; noise < params.param.noise_vectors[level]; noise++) {
+	for ( (params.param.trace_restart && (level == restart.level)) ?  noise = restart.noise+1 :  noise = 0 ; noise < params.param.noise_vectors[level]; noise++) {
 	std::map< KeyOperator_t, ValOperator_t > db;
         // doing a new noise vector
         QDPIO::cout << " Doing noise vector " << noise  << std::endl; 
+        QDPIO::cout << "The seed is " << rng_seed << " on level " << level << " and noise vector " << noise << std::endl;
+
 
 	//generate a random std::vector
 	LatticeComplex vec ;
@@ -2170,48 +2450,6 @@ namespace Chroma
 
 	  if (level < num_levels-1){ //level control
 
-	  //modify the mass of in the inverter params, if there is one
-	  //modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
-	  //Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
-	  //get the lower mass solutions
-
-/*        modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch]);
-        std::istringstream  xml_r(params.param.prop.fermact.xml);
-        XMLReader  fermactr(xml_r);
-
-        Handle< FermionAction<T,P,Q> > S_r(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
-                                                               fermactr,
-                                                               params.param.prop.fermact.path));
-        Handle< FermState<T,P,Q> > state_r(S_r->createState(u));
-
-        modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
-        Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, params.param.prop.invParam);
-
-	  std::vector<SystemSolverResults_t> res_r = (*PP)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
-	  for (int t = 0; t < res_r.size(); t++){
-	  count_r += 1.0 * res_r[t].n_count;
-	  }
-	  QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count_r = " << count_r << std::endl;
-	  //modify the mass in the inverter params, if there is one
-	  //modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
-          //PP = S_s->qprop(state_s, params.param.prop.invParam);
-	  //get the higher mass solutions
-
-        modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
-        std::istringstream  xml_s(params.param.prop.fermact.xml);
-        XMLReader  fermacts(xml_s);
-
-
-        Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
-                                           fermacts, params.param.prop.fermact.path));
-        Handle< FermState<T,P,Q> > state_s(S_s->createState(u));
-
-        modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
-        //Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state_s, params.param.prop.invParam);
-        PP = S_s->qprop(state_s, params.param.prop.invParam);
-
-          std::vector<SystemSolverResults_t> res_s = (*PP)(v_psi[1], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
-*/
 	int sol = 0;
 	for (int m = level_switch; m < level_switch+2; m++){
 	  modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[m]);
@@ -2232,12 +2470,6 @@ namespace Chroma
 	}
 
 
-
-	  //for (int t = 0; t < res_s.size(); t++){
-	  //count_s += 1.0 * res_s[t].n_count;
-	  //}
-	  //QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count_s = " << count_s << std::endl;
-
           // here the recursive call goes to compute 
           // the loops
           // result is ADDED to db
@@ -2253,27 +2485,6 @@ namespace Chroma
 
 	  }else{ // level control
 	  
-          //modify the mass in the inverter params, if there is one
-          //modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
-          //Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state_s, params.param.prop.invParam);
-
-        //modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
-        //std::istringstream  xml_s(params.param.prop.fermact.xml);
-        //XMLReader  fermacts(xml_s);
-
-
-       // Handle< FermionAction<T,P,Q> > S_s(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
-       //                                    fermacts, params.param.prop.fermact.path));
-       // Handle< FermState<T,P,Q> > state_s(S_s->createState(u));
-
-       // modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
-       // Handle< SystemSolver<LatticeFermion> > PP = S_s->qprop(state_s, params.param.prop.invParam);
-
-      //std::vector<SystemSolverResults_t> res_s = (*PP)(v_psi[0], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
-	//  for (int t = 0; t < res_s.size(); t++){
-	//  count_s += 1.0 * res_s[t].n_count;
-	//  }
-	//  QDPIO::cout << "On level = " << level << " and noise vector " << noise << " and count_s = " << count_s << std::endl;
 
           modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
           modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
@@ -2325,6 +2536,10 @@ namespace Chroma
        // Update the mean and the average
         do_update(dbs.levels_avg[level], dbs.levels_var[level], db, noise == 0);
 
+	checkpoint_out(level, noise, rng_seed, num_levels, cl, count, params.param.shifts, dbs.levels_avg[level], dbs.levels_var[level], filename_traces, filename_vars);
+	QDP::RNG::savern(rng_seed);
+	restart_seed_out(seed_file, rng_seed);
+
         // Show stats
         if(params.param.display_level_stats){
         show_stats(dbs.levels_avg[level], dbs.levels_var[level], dbdet, 1, noise+1, level);
@@ -2341,16 +2556,6 @@ namespace Chroma
     }
 
 
-    /*std::string sub_1 = retrieveSubspaceId(params.param.prop.invParam.xml);
-    std::string sub_2 = retrieveSubspaceId(prop_s.invParam.xml);
-    if( TheNamedObjMap::Instance().check(sub_1) ) {
-      QDPIO::cout << "  ... Subspace ID found... Deleting" <<std::endl;
-      TheNamedObjMap::Instance().erase(sub_1);
-    }
-    if( TheNamedObjMap::Instance().check(sub_2) ) {
-      QDPIO::cout << "  ... Subspace ID found... Deleting" <<std::endl;
-      TheNamedObjMap::Instance().erase(sub_2);
-    }*/
 
   } //level
 
@@ -2404,7 +2609,7 @@ for (int level = 0; level < num_levels; level++){
       // write out the results
       
       // DB storage         
-      BinaryStoreDB<SerialDBKey<KeyOperator_t>,SerialDBData<ValOperator_t> > qdp_db;
+/*      BinaryStoreDB<SerialDBKey<KeyOperator_t>,SerialDBData<ValOperator_t> > qdp_db;
       
       // Open the file, and write the meta-data and the binary for this operator
       {
@@ -2442,6 +2647,7 @@ for (int level = 0; level < num_levels; level++){
           val.data().op[i] = it->second.op[i];
 	qdp_db.insert(key,val);
       }
+*/
 
       pop(xml_out);  // close last tag
 

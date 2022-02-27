@@ -46,12 +46,8 @@ namespace Chroma
 	bool use_mg; 			//Flag to use the multigrid cost function or not
 	int num_shifts;
         multi1d<Real> shifts;   	//The shifts used for frequency splitting. If use_interpolation == true, they are your test shifts
-	int num_test_shifts_across;
-	multi1d<Real> test_shifts_across;
-	int num_test_shifts_down;
-	multi1d<Real> test_shifts_down;
 					//If use_interpolation == false, these will be the shifts you use for frequency splitting. 
-	multi1d<int> del_s;		//The discretization for the interpolated shifts, in matlab the interpolated shifts are:  [0:del_s:shifts(end)];
+	multi1d<double> del_s;		//The discretization for the interpolated shifts, in matlab the interpolated shifts are:  [0:del_s:shifts(end)];
 	multi1d<int> num_bcshifts;
 	ChromaProp_t prop;  		//propagator
 	int probing_distance;
@@ -67,9 +63,8 @@ namespace Chroma
 					//by finding the maximum relative error of non vanishing traces. 
 	bool display_level_stats;	//Bool to display the stats for each level
 	bool debug;
-	int num_test_data;
-	multi1d<Real> test_var_data;
-	multi1d<Real> test_shift_data;
+	bool interp_restart;
+	bool trace_restart;
       } param;
 
       struct NamedObject_t

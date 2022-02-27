@@ -12,7 +12,7 @@ namespace Chroma {
 
 //namespace {
 
-std::vector<double> interpolationShifts(multi1d<int>& bcs, multi1d<int>& num)
+std::vector<double> interpolationShifts(multi1d<double>& bcs, multi1d<int>& num)
 {
 
 	//bcs contain the power you want to raise 10 to in order
@@ -515,7 +515,7 @@ std::vector<double> interpolate(const std::vector<double>& shifts, const std::ve
 	std::vector<double> tmps = shifts;
 	std::vector<double> tmpv = vars;
 	int_vals.resize(intshifts.size());
-	if (shifts.size() >= 4){
+	if (shifts.size() >= 3){
 	   if (dir == "vertical"){
 	   boost::math::interpolators::pchip<std::vector<double>> spline(std::move(tmps), std::move(tmpv));
            for (int i = 0; i < int_vals.size(); i++){
@@ -549,11 +549,7 @@ std::vector<double> interpolate(const std::vector<double>& shifts, const std::ve
 }
 
 
-InterpPow_t findP(const CostHolder_t& costs, 
-		  const std::vector<double>& test_shifts_a, 
-		  const std::vector<double>& test_vals_a,
-		  const std::vector<double>& test_shifts_d,
-		  const std::vector<double>& test_vals_d)
+/*InterpPow_t findP(const CostHolder_t& costs)
 {
 	//QDPIO::cout << "In findP " << std::endl;
 	//QDPIO::cout << "Using " << costs.shifts.size() << " total shifts " << std::endl;
@@ -646,9 +642,9 @@ InterpPow_t findP(const CostHolder_t& costs,
         }
 	return int_p;
 
-}
+} */
 
-CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<int>& dels, multi1d<int>& num_bcshifts, const bool& use_mg)
+CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& dels, multi1d<int>& num_bcshifts, const bool& use_mg)
 {
 
 	//QDPIO::cout << "In interpolate_variances " << std::endl;
@@ -664,7 +660,25 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<int>& dels
 	intshifts = vecunion(intshifts, costs.shifts);
 	*/
 
-	std::vector<double> intshifts = interpolationShifts(dels, num_bcshifts);
+	//for now, hardcoding in some small shifts...blehhhh
+	multi1d<double> bcs;
+	bcs.resize(2);
+	bcs[0] = -5.0;
+	bcs[1] = -2.0;
+	multi1d<int> nums;
+	nums.resize(1);
+	nums[0] = 4;
+	std::vector<double> lowshifts = interpolationShifts(bcs, nums);
+	QDPIO::cout << "The smallest shifts for interpolation are : " << std::endl;
+	for (auto i : lowshifts) {QDPIO::cout << i << std::endl; }
+
+	std::vector<double> tmpintshifts = interpolationShifts(dels, num_bcshifts);
+	std::vector<double> intshifts;
+	for (int i = 0; i < lowshifts.size(); i++){intshifts.push_back(lowshifts[i]);}
+	for (int i = 0; i < tmpintshifts.size(); i++){intshifts.push_back(tmpintshifts[i]);}
+	tmpintshifts.clear();
+	lowshifts.clear();
+	
 	intshifts = vecunion(intshifts, costs.shifts);
 	int_vars.r_variances.resize(intshifts.size());	
 	int_vars.rs_variances.resize(intshifts.size(), std::vector<double>(intshifts.size()));
@@ -980,7 +994,7 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<int>& dels
 
 }
 
-std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<int>& dels, multi1d<int>& num_bcshifts, const bool& use_mg, int& disp, int& gamma)
+std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<double>& dels, multi1d<int>& num_bcshifts, const bool& use_mg, int& disp, int& gamma)
 {
 	//QDPIO::cout << "In getMinShifts" << std::endl;
 	std::vector<MinCosts_t> stats;

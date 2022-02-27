@@ -184,39 +184,6 @@ namespace Chroma
         param.use_mg = false;
     }
 
-    if (inputtop.count("num_test_shifts_across")!=0){
-       read(inputtop,"num_test_shifts_across",param.num_test_shifts_across);
-       }else{
-       param.num_test_shifts_across = param.num_shifts - 1;
-   }
-
-    if(inputtop.count("test_shifts_across")!=0){
-      read(inputtop,"test_shifts_across",param.test_shifts_across);
-      }else{
-       //if you dont have some test shifts, supply with default values;
-       param.test_shifts_across.resize(param.num_shifts-1);
-       param.test_shifts_across[0] = 0.001;
-       param.test_shifts_across[1] = 0.01;
-       param.test_shifts_across[2] = 0.1;
-       param.test_shifts_across[3] = 0.6;
-    }
-
-    if(inputtop.count("num_test_shifts_down")!=0){
-      read(inputtop,"num_test_shifts_down",param.num_test_shifts_down);
-      if (param.num_test_shifts_down != param.num_test_shifts_across){
-	 QDPIO::cout << "You must have the same number of test shifts down as you do across" << std::endl;
-	 QDP_abort(1);
-      }
-      }else{
-      param.num_test_shifts_down = param.num_test_shifts_across;
-    }
-
-    if (inputtop.count("test_shifts_down")!=0){
-       read(inputtop,"test_shifts_down",param.test_shifts_down);
-       }else{
-       param.test_shifts_down.resize(param.num_test_shifts_across);
-       param.test_shifts_down = param.test_shifts_across;
-    }
 
       if(inputtop.count("noise_vectors")!=0){
         read(inputtop,"noise_vectors",param.noise_vectors) ;
@@ -302,12 +269,6 @@ namespace Chroma
 	 read(inputtop,"debug",param.debug);
       }
   
-      if (inputtop.count("test_var_data")!=0){
-	 read(inputtop,"test_var_data",param.test_var_data);
-      }
-      if (inputtop.count("test_shift_data")!=0){
-         read(inputtop,"test_shift_data",param.test_shift_data);
-      }
 
 	 
 

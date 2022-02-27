@@ -160,7 +160,7 @@ bool isequal(const T& x, const T& y)
 
 //linear interpolation for when we need it with small shifts
 
-std::vector<double> interpolationShifts(multi1d<int>& bcs, multi1d<int>& num);
+std::vector<double> interpolationShifts(multi1d<double>& bcs, multi1d<int>& num);
 
 double linearInterpolation(const double& y0, const double& y1, const double& x0, const double& x1, const double& x);
 
@@ -188,15 +188,11 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
 
 std::vector<double> interpolate(const std::vector<double>& shifts, const std::vector<double>& vars, const std::vector<double>& intshifts);
 
-InterpPow_t findP(const CostHolder_t& costs,
-                  const std::vector<double>& test_shifts_a,
-                  const std::vector<double>& test_vals_a,
-                  const std::vector<double>& test_shifts_d,
-                  const std::vector<double>& test_vals_d);
+InterpPow_t findP(const CostHolder_t& costs);
 
-CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<int>& dels, multi1d<int>& num_bcshifts, const bool& use_mg);
+CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& dels, multi1d<int>& num_bcshifts, const bool& use_mg);
 
-std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<int>& dels, multi1d<int>& num_bcshifts, const bool& use_mg, int& disp, int& gamma);
+std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<double>& dels, multi1d<int>& num_bcshifts, const bool& use_mg, int& disp, int& gamma);
 					  
 
 //std::vector<int> findGammaDisp(const CostHolder& costs);
