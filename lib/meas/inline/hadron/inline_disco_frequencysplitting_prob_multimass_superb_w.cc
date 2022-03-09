@@ -31,6 +31,7 @@
 #include <cassert>
 #include <string>
 #include <complex>
+#include <iomanip>
 
 namespace Chroma 
 { 
@@ -661,6 +662,7 @@ namespace Chroma
     int nodelist = Layout::nodeNumber();
     //only master node writes to file
     if (nodelist == 0){
+    int prec = 17; //for output to file
     std::ofstream file_trace;
     std::ofstream file_var;
     file_trace.open(tracefile, std::ios::out);
@@ -677,17 +679,35 @@ namespace Chroma
 	    file_trace << it->first << '\n';
 	    file_var << itv->first << '\n';
 	    for (int g = 0; g < Ns * Ns; g++){
+		DComplex a;
+		DComplex b;
 #ifdef QDP_IS_QDPJIT
-		file_trace << it->second.op[g].elem().elem().elem().real().elem() << '\n';
-		file_trace << it->second.op[g].elem().elem().elem().imag().elem() << '\n';
-		file_var << itv->second.op[g].elem().elem().elem().real().elem() << '\n';
-		file_var << itv->second.op[g].elem().elem().elem().imag().elem() << '\n';
+		a.elem().elem().elem().real() = it->second.op[g].elem().elem().elem().real().elem();
+		a.elem().elem().elem().imag() = it->second.op[g].elem().elem().elem().imag().elem();
+		//file_trace << it->second.op[g].elem().elem().elem().real().elem() << '\n';
+		file_trace << std::fixed << std::setprecision(prec) << detox(a.elem().elem().elem().real())<< '\n';
+		//file_trace << it->second.op[g].elem().elem().elem().imag().elem() << '\n';
+		file_trace << std::fixed << std::setprecision(prec) << detox(a.elem().elem().elem().imag()) << '\n';
+		b.elem().elem().elem().real() = itv->second.op[g].elem().elem().elem().real().elem();
+		b.elem().elem().elem().imag() = itv->second.op[g].elem().elem().elem().imag().elem();
+		//file_var << itv->second.op[g].elem().elem().elem().real().elem() << '\n';
+		file_var << std::fixed << std::setprecision(prec) << detox(b.elem().elem().elem().real()) << '\n';
+		//file_var << itv->second.op[g].elem().elem().elem().imag().elem() << '\n';
+		file_var << std::fixed << std::setprecision(prec) << detox(b.elem().elem().elem().imag()) << '\n';
 		
 #else
-		file_trace << it->second.op[g].elem().elem().elem().real() << '\n';
-		file_trace << it->second.op[g].elem().elem().elem().imag() << '\n';
-		file_var << itv->second.op[g].elem().elem().elem().real() << '\n';
-		file_var << itv->second.op[g].elem().elem().elem().imag() << '\n';
+		a.elem().elem().elem().real() = it->second.op[g].elem().elem().elem().real();
+		a.elem().elem().elem().imag() = it->second.op[g].elem().elem().elem().imag();
+		file_trace << std::fixed << std::setprecision(prec) << detox(a.elem().elem().elem().real()) << '\n';
+		file_trace << std::fixed << std::setprecision(prec) << detox(a.elem().elem().elem().imag()) << '\n';
+		//file_trace << it->second.op[g].elem().elem().elem().real() << '\n';
+		//file_trace << it->second.op[g].elem().elem().elem().imag() << '\n';
+		b.elem().elem().elem().real() = itv->second.op[g].elem().elem().elem().real();
+		b.elem().elem().elem().imag() = itv->second.op[g].elem().elem().elem().imag();
+		//file_var << itv->second.op[g].elem().elem().elem().real() << '\n';
+		//file_var << itv->second.op[g].elem().elem().elem().imag() << '\n';
+		file_var << std::fixed << std::setprecision(prec) << detox(b.elem().elem().elem().real()) << '\n';
+		file_var << std::fixed << std::setprecision(prec) << detox(b.elem().elem().elem().imag()) << '\n';
 #endif
 	    } //g
 	    itv++;
@@ -1339,7 +1359,7 @@ namespace Chroma
         kv.second.resize(it->second.op.size());
         for(int i(0);i<it->second.op.size();i++) {
           DComplex a = it->second.op[i] / num_noise - itmean->second.op[i] * conj(itmean->second.op[i]) / num_noise / num_noise;
-          kv.second[i] = a.elem().elem().elem().real() / hadamard_normalization / hadamard_normalization;
+          kv.second[i] = detox(a.elem().elem().elem().real()) / hadamard_normalization / hadamard_normalization;
         }
         std::pair<std::map< KeyOperator_t, std::vector<double> >::iterator, bool> itbo = dbvar_avg.insert(kv);
         if(itbo.second ){
@@ -1351,7 +1371,7 @@ namespace Chroma
         }
     
 
-        for(int i(0);i<it->second.op.size();i++) kv.second[i] = abs(std::complex<double>(itmean->second.op[i].elem().elem().elem().real(), itmean->second.op[i].elem().elem().elem().imag())) / hadamard_normalization / num_noise;
+        for(int i(0);i<it->second.op.size();i++) kv.second[i] = abs(std::complex<double>(detox(itmean->second.op[i].elem().elem().elem().real()), detox(itmean->second.op[i].elem().elem().elem().imag()))) / hadamard_normalization / num_noise;
         itbo = dbmean_avg.insert(kv);
         if(!itbo.second){
           for(int i(0);i<it->second.op.size();i++) itbo.first->second[i] += kv.second[i];
@@ -1360,7 +1380,7 @@ namespace Chroma
 
         itmean = dbdet.find(it->first);
         if (itmean != dbdet.cend()) {
-          for(int i(0);i<it->second.op.size();i++) kv.second[i] = abs(std::complex<double>(itmean->second.op[i].elem().elem().elem().real(), itmean->second.op[i].elem().elem().elem().imag()));
+          for(int i(0);i<it->second.op.size();i++) kv.second[i] = abs(std::complex<double>(detox(itmean->second.op[i].elem().elem().elem().real()), detox(itmean->second.op[i].elem().elem().elem().imag())));
         } else {
           for(int i(0);i<it->second.op.size();i++) kv.second[i] = 0.0;
         }
