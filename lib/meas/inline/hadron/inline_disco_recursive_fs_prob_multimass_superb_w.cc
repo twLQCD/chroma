@@ -596,7 +596,7 @@ namespace Chroma
     getline(file_trace,line_t);
     restart.count[1] = stod(line_t);
     restart.level_cost.resize(restart.num_levels);
-    restart.shifts.resize(restart.num_levels);
+    restart.shifts.resize((restart.num_levels+1)/2);
     for (int i = 0; i < restart.level_cost.size(); i++){
 	getline(file_trace,line_t);
 	restart.level_cost[i] = stod(line_t);
@@ -2379,6 +2379,8 @@ namespace Chroma
       for (int level = restart.level; level < num_levels; level++){
 	//will need to adjust the level control 	
 	if  (level % 2 == 0) {
+	    level_switch = level/2;
+	}else if (params.param.trace_restart && level == restart.level && (level % 2 == 1)) {
 	    level_switch = level/2;
 	}
 	//}else{
