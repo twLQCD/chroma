@@ -2377,11 +2377,11 @@ namespace Chroma
 
 
       for (int level = restart.level; level < num_levels; level++){
-	//will need to adjust the level control 	
+	//controls the shifts to use at each level 	
 	if  (level % 2 == 0) {
 	    level_switch = level/2;
 	}else if (params.param.trace_restart && level == restart.level && (level % 2 == 1)) {
-	    level_switch = level/2;
+	    level_switch = (level-1)/2;
 	}
 	//}else{
 	  //  level_switch = level - 1;
