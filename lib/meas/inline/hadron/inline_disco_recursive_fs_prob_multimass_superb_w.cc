@@ -2328,13 +2328,13 @@ namespace Chroma
 	} //i
 	rng_seed = restart_seed_in(seed_file);
 	num_levels = restart.num_levels;
-	params.param.shifts.resize(num_levels);
+	params.param.shifts.resize((num_levels+1)/2);
 	std::map<KeyOperator_t, ValOperator_t> db;
 	for (int i = restart.level+1; i < restart.num_levels; i++){
 	    dbs.levels_var.push_back(db);
 	    dbs.levels_avg.push_back(db);
 	}
-	for (int i = 0; i < num_levels; i++){ params.param.shifts[i].elem() = restart.shifts[i]; }
+	for (int i = 0; i < params.param.shifts.size(); i++){ params.param.shifts[i].elem() = restart.shifts[i]; }
 	QDP::RNG::setrn(rng_seed);
 	QDPIO::cout << "Seed " << rng_seed << " has been set" << std::endl;
       }else{
@@ -2377,9 +2377,13 @@ namespace Chroma
 
 
       for (int level = restart.level; level < num_levels; level++){
+
+
 	//controls the shifts to use at each level 	
-	if  (level % 2 == 0) {
+	if  ((level % 2 == 0) && (level != num_levels-1)) {
 	    level_switch = level/2;
+	}else if ( (level % 2 == 0) && (level == num_levels-1)) {
+	    level_switch = level/2 - 1;
 	}else if (params.param.trace_restart && level == restart.level && (level % 2 == 1)) {
 	    level_switch = (level-1)/2;
 	}
@@ -2564,8 +2568,8 @@ namespace Chroma
 
 	  } else { //this does the last term if level = num_levels
 
-          modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch]);
-          modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch]);
+          modifyMass(params.param.prop.fermact.xml, m_qi, params.param.shifts[level_switch+1]);
+          modifyMass(params.param.prop.invParam.xml, m_qi, params.param.shifts[level_switch+1]);
           std::istringstream  xml_r(params.param.prop.fermact.xml);
           XMLReader  fermactr(xml_r);
           Handle< FermionAction<T,P,Q> > S_r(TheFermionActionFactory::Instance().createObject(params.param.prop.fermact.id,
