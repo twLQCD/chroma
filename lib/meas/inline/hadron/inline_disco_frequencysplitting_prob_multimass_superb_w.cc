@@ -33,6 +33,8 @@
 #include <complex>
 #include <iomanip>
 
+//using namespace Interp;
+
 namespace Chroma 
 { 
   namespace InlineDiscoFreqSplitProbMMSuperb 
@@ -1724,7 +1726,7 @@ namespace Chroma
 
   } //end of func
 
-    std::vector<MinCosts_t> getOptimalShifts(InlineDiscoFreqSplitProbMMSuperb::Params::Param_t& param, const multi1d<LatticeColorMatrix>& u)
+    std::vector<Interp::MinCosts_t> getOptimalShifts(InlineDiscoFreqSplitProbMMSuperb::Params::Param_t& param, const multi1d<LatticeColorMatrix>& u)
     {
 
       typedef LatticeFermion               T;
@@ -1809,7 +1811,7 @@ namespace Chroma
       a = -1.0;
       NOne = cmplx(a,0.0);
 
-      CostHolder_t costs;
+      Interp::CostHolder_t costs;
       costs.r_variances.resize(param.num_shifts);
       costs.rs_variances.resize(param.num_shifts, std::vector<double>(param.num_shifts));
       costs.level_costs.resize(param.num_shifts); 
@@ -1825,7 +1827,7 @@ namespace Chroma
       VecMap dbr_mean(param.num_shifts);
       VecMap dbr_var(param.num_shifts);
 
-      std::vector<MinCosts_t> mincosts;
+      std::vector<Interp::MinCosts_t> mincosts;
       int pos;
       std::vector<double> level_sum;
       level_sum.resize(param.num_shifts);
@@ -2054,7 +2056,7 @@ namespace Chroma
 
 	//here is the call for interpolation
 	if (noise > 0){
-	mincosts = getMinShifts(costs, param.del_s, param.num_bcshifts, param.use_mg, k, param.gamma_disp[1]);
+	mincosts = Interp::getMinShifts(costs, param.del_s, param.num_bcshifts, param.use_mg, k, param.gamma_disp[1]);
 	//QDPIO::cout << "Cost for regular calculation of Disp = " << param.gamma_disp[0] << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
 	QDPIO::cout << "Cost for regular calculation of Disp = " << k  << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
 	}
@@ -2229,7 +2231,7 @@ namespace Chroma
       int nodelist = Layout::nodeNumber();
 
 
-      std::vector<MinCosts_t> mincosts;
+      std::vector<Interp::MinCosts_t> mincosts;
       if(params.param.use_interpolation){
       mincosts = getOptimalShifts(params.param, u);
       

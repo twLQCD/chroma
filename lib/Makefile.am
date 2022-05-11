@@ -675,6 +675,7 @@ nobase_include_HEADERS += \
 	meas/hadron/npr_vertex_w.h \
 	meas/hadron/greedy_coloring.h \
 	meas/hadron/interpolation.h \
+	meas/hadron/recursive_interpolation.h \
 	meas/smear/deriv_quark_displacement_w.h \
 	meas/smear/gamma_displacement_w.h \
         meas/schrfun/sfpcac_w.h \
@@ -1683,6 +1684,7 @@ libchroma_a_SOURCES += \
 	meas/hadron/npr_vertex_w.cc \
 	meas/hadron/greedy_coloring.cc \
 	meas/hadron/interpolation.cc \
+	meas/hadron/recursive_interpolation.cc \
 	meas/pbp/mespbp_w.cc \
         meas/schrfun/sfpcac_w.cc \
         meas/schrfun/sfcorr_w.cc \

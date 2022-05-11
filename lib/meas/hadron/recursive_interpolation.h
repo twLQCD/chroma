@@ -1,8 +1,8 @@
-//file for interpolation of variances for Frequency Splitting
+//file for interpolation of variances for Recursive Frequency Splitting
 //
 
-#ifndef __INCLUDE_INTERPOLATION__
-#define __INCLUDE_INTERPOLATION__
+#ifndef __INCLUDE_RECURSIVE_INTERPOLATION__
+#define __INCLUDE_RECURSIVE_INTERPOLATION__
 
 #include "chromabase.h"
 #include <complex>
@@ -14,21 +14,22 @@
 namespace Chroma {
 //Interface for accessing interpolation data
 
-namespace Interp {
+namespace RecInterp {
 
 //struct to hold the data
 struct CostHolder_t {
 
     //the solver costs (iterations)
     std::vector<double> level_costs;
-    //the variances of the (D+sI)^{-1} terms
+
+    //the variances of the \Gamma(D+sI)^{-1} terms
     std::vector<double> r_variances;
-    //the variances of the (D+s_i I)^{-1}(D+s_{i+1}I)^{-1} terms
-    std::vector<std::vector<double>> rs_variances;
-    //the traces of the (D+sI)^{-1} terms
-    std::vector<std::complex<double>> r_traces;
-    //the traces of the (D+s_i I)^{-1}(D+s_{i+1}I)^{-1} terms
-    std::vector<std::vector<std::complex<double>>> rs_traces;
+
+    //the variances of the (D+s_i I)^{-1}\Gamma(D+s_i I)^{-1} terms
+    std::vector<std::vector<double>> rr_variances;
+
+    //the variances of the (D+s_{i+1}I)^{-2}\Gamma(D+s_{i}I)^{-1} terms
+    std::vector<std::vector<double>> rrs_variances;
 
     //the shifts
     std::vector<double> shifts;
@@ -37,7 +38,7 @@ struct CostHolder_t {
 };
 
 
-//struct to hold the data found from minimums
+//struct to hold the predicted data found from minimums
 struct MinCosts_t {
 
     std::vector<double> shifts;
@@ -51,12 +52,12 @@ struct MinCosts_t {
 
 };
 
-struct InterpPow_t {
+//struct InterpPow_t {
 
-     std::vector<double> p_a;
-     std::vector<double> p_d;
+//     std::vector<double> p_a;
+//     std::vector<double> p_d;
 
-};
+//};
 
 template<typename T>
 std::vector<T> slice(std::vector<T> const &v, int m, int n)
@@ -190,18 +191,17 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
 
 std::vector<double> interpolate(const std::vector<double>& shifts, const std::vector<double>& vars, const std::vector<double>& intshifts);
 
-InterpPow_t findP(const CostHolder_t& costs);
+//InterpPow_t findP(const CostHolder_t& costs);
 
 CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& dels, multi1d<int>& num_bcshifts, const bool& use_mg);
 
 std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<double>& dels, multi1d<int>& num_bcshifts, const bool& use_mg, int& disp, int& gamma);
 					  
 
-//std::vector<int> findGammaDisp(const CostHolder& costs);
 
 
 
-} //namespace
+} //namespace RecInterp
 
 }
-#endif // __INCLUDE_INTERPOLATION__
+#endif // __INCLUDE_RECURSIVE_INTERPOLATION__

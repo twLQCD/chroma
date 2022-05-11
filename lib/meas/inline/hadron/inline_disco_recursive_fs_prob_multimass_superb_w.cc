@@ -12,7 +12,7 @@
 #include "fermact.h"
 #include "meas/glue/mesplq.h"
 #include "meas/hadron/greedy_coloring.h"
-#include "meas/hadron/interpolation.h"
+#include "meas/hadron/recursive_interpolation.h"
 #include "meas/inline/abs_inline_measurement_factory.h"
 #include "meas/inline/io/named_objmap.h"
 #include "meas/inline/make_xml_file.h"
@@ -31,6 +31,8 @@
 #include <cassert>
 #include <string>
 #include <complex>
+
+//using namespace RecInterp;
 
 namespace Chroma 
 { 
@@ -565,7 +567,7 @@ namespace Chroma
       }
     }
 
-    Restart_t checkpoint_in(const std::string& tracefile, const std::string& varfile, const int& max_path_length)
+    Restart_t checkpoint_in(const std::string& tracefile, const std::string& varfile, const int& max_path_length, const bool& interp_check)
 
     {
     
@@ -596,7 +598,11 @@ namespace Chroma
     getline(file_trace,line_t);
     restart.count[1] = stod(line_t);
     restart.level_cost.resize(restart.num_levels);
+    if (interp_check){
+    restart.shifts.resize((restart.num_levels));
+    }else{
     restart.shifts.resize((restart.num_levels+1)/2);
+    }
     for (int i = 0; i < restart.level_cost.size(); i++){
 	getline(file_trace,line_t);
 	restart.level_cost[i] = stod(line_t);
@@ -1704,7 +1710,7 @@ namespace Chroma
 
   } //end of func
 
-    std::vector<MinCosts_t> getOptimalShifts(InlineDiscoRecFreqSplitProbMMSuperb::Params::Param_t& param, const multi1d<LatticeColorMatrix>& u)
+    std::vector<RecInterp::MinCosts_t> getOptimalShifts(InlineDiscoRecFreqSplitProbMMSuperb::Params::Param_t& param, const multi1d<LatticeColorMatrix>& u)
     {
 
       typedef LatticeFermion               T;
@@ -1789,9 +1795,10 @@ namespace Chroma
       a = -1.0;
       NOne = cmplx(a,0.0);
 
-      CostHolder_t costs;
+      RecInterp::CostHolder_t costs;
       costs.r_variances.resize(param.num_shifts);
-      costs.rs_variances.resize(param.num_shifts, std::vector<double>(param.num_shifts));
+      costs.rrs_variances.resize(param.num_shifts, std::vector<double>(param.num_shifts));
+      costs.rr_variances.resize(param.num_shifts, std::vector<double>(param.num_shifts));
       costs.level_costs.resize(param.num_shifts); 
       costs.shifts.resize(param.num_shifts);
       QDPIO::cout << "Shifts used to estimate the variance are : " << std::endl;
@@ -1800,12 +1807,14 @@ namespace Chroma
       QDPIO::cout << costs.shifts[i] << std::endl;
       }   
 
-      MatMap dbrs_mean(param.num_shifts, VecMap(param.num_shifts));;
-      MatMap dbrs_var(param.num_shifts, VecMap(param.num_shifts));;
+      MatMap dbrrs_mean(param.num_shifts, VecMap(param.num_shifts));
+      MatMap dbrrs_var(param.num_shifts, VecMap(param.num_shifts));
+      MatMap dbrr_mean(param.num_shifts, VecMap(param.num_shifts));
+      MatMap dbrr_var(param.num_shifts, VecMap(param.num_shifts));
       VecMap dbr_mean(param.num_shifts);
       VecMap dbr_var(param.num_shifts);
 
-      std::vector<MinCosts_t> mincosts;
+      std::vector<RecInterp::MinCosts_t> mincosts;
       int pos;
       std::vector<double> level_sum;
       level_sum.resize(param.num_shifts);
@@ -1820,9 +1829,9 @@ namespace Chroma
         for (int i = 0; i < param.num_shifts; i++){
 	for (int j = i; j < param.num_shifts; j++){
 
-	//this does all the product terms
-        std::string filename_traces = "interp_traces_shifts_" + std::to_string(i) + std::to_string(j) + "_" + param.mass_label + "_" + param.probing_file;
-        std::string filename_vars = "interp_variances_shifts_" + std::to_string(i) + std::to_string(j) + "_" + param.mass_label + "_" + param.probing_file;
+	//this does all the triple inverse terms
+        std::string filename_traces = "interp_traces_rrs_shifts_" + std::to_string(i) + std::to_string(j) + "_" + param.mass_label + "_" + param.probing_file;
+        std::string filename_vars = "interp_variances_rrs_shifts_" + std::to_string(i) + std::to_string(j) + "_" + param.mass_label + "_" + param.probing_file;
         std::ifstream file_t;
         std::ifstream file_v;
         file_t.open(filename_traces, std::ios::in);
@@ -1831,16 +1840,16 @@ namespace Chroma
         QDPIO::cout << "Trace and Variance checkpoint files exist. Reading in the values." << std::endl;
         file_t.close();
         file_v.close();
-        restart = checkpoint_in(filename_traces, filename_vars, param.max_path_length);
-        dbrs_mean[i][j] = restart.db_trace;
-        dbrs_var[i][j] = restart.db_var;
+        restart = checkpoint_in(filename_traces, filename_vars, param.max_path_length, true);
+        dbrrs_mean[i][j] = restart.db_trace;
+        dbrrs_var[i][j] = restart.db_var;
         level_sum = restart.level_cost;
         } //file
 	} //j
-	
-	//this does the single terms
-	std::string filename_traces = "interp_traces_shifts_" + std::to_string(i) + "_" + param.mass_label + "_" + param.probing_file;
-        std::string filename_vars = "interp_variances_shifts_" + std::to_string(i) + "_" + param.mass_label + "_" + param.probing_file;
+
+	//this does all the double inverse terms
+	std::string filename_traces = "interp_traces_rr_shifts_" + std::to_string(i) + "_" + param.mass_label + "_" + param.probing_file;
+        std::string filename_vars = "interp_variances_rr_shifts_" + std::to_string(i) + "_" + param.mass_label + "_" + param.probing_file;
         std::ifstream file_t;
         std::ifstream file_v;
         file_t.open(filename_traces, std::ios::in);
@@ -1849,7 +1858,26 @@ namespace Chroma
         QDPIO::cout << "Trace and Variance checkpoint files exist. Reading in the values." << std::endl;
         file_t.close();
         file_v.close();
-        restart = checkpoint_in(filename_traces, filename_vars, param.max_path_length);
+        restart = checkpoint_in(filename_traces, filename_vars, param.max_path_length, true);
+        dbrr_mean[0][i] = restart.db_trace;
+        dbrr_var[0][i] = restart.db_var;
+        level_sum = restart.level_cost;
+        }
+
+	//} //j
+	
+	//this does the single terms
+	filename_traces = "interp_traces_r_shifts_" + std::to_string(i) + "_" + param.mass_label + "_" + param.probing_file;
+        filename_vars = "interp_variances_r_shifts_" + std::to_string(i) + "_" + param.mass_label + "_" + param.probing_file;
+        //std::ifstream file_t;
+        //std::ifstream file_v;
+        file_t.open(filename_traces, std::ios::in);
+        file_v.open(filename_vars, std::ios::in);
+        if (file_t && file_v){
+        QDPIO::cout << "Trace and Variance checkpoint files exist. Reading in the values." << std::endl;
+        file_t.close();
+        file_v.close();
+        restart = checkpoint_in(filename_traces, filename_vars, param.max_path_length, true);
         dbr_mean[i] = restart.db_trace;
         dbr_var[i] = restart.db_var;
 	level_sum = restart.level_cost;
@@ -1868,7 +1896,8 @@ namespace Chroma
       //for (int noise = 0; noise < param.num_samples; noise++){
       int noise;
       for ( param.interp_restart ? noise = restart.noise+1 : noise = 0; noise < param.num_samples; noise++){ 
-	  MatMap dbrs(param.num_shifts, VecMap(param.num_shifts));;
+	  MatMap dbrrs(param.num_shifts, VecMap(param.num_shifts));
+	  MatMap dbrr(param.num_shifts, VecMap(param.num_shifts));
 	  VecMap dbr(param.num_shifts);
 
 	  QDPIO::cout << " Doing noise vector " << noise  << std::endl;
@@ -1888,10 +1917,11 @@ namespace Chroma
 	     X1dvector v_chi(Ns * Nc * dk);
 	     for (int col=0; col<v_chi.size(); col++) v_chi[col].reset(new LatticeFermion);
 	     X2dmatrix v_psi(param.num_shifts, X1dvector(Ns * Nc * dk));
-
+	     X2dmatrix v_psi2(param.num_shifts, X1dvector(Ns * Nc * dk));
 	     for (int row = 0; row < param.num_shifts; row++){
 		 for (int col = 0; col < v_psi[row].size(); col++){
 		     v_psi[row][col].reset(new LatticeFermion);
+		     v_psi2[row][col].reset(new LatticeFermion);
 		  }
 	
 	     }
@@ -1909,7 +1939,8 @@ namespace Chroma
                 // This only overwrites sections, so need to initialize first
                 *v_chi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
                 CvToFerm(vec_srce, *v_chi[i_v * Ns * Nc + color_source * Ns + spin_source], spin_source);
-				for (int row=0; row < param.num_shifts; row++) *v_psi[row][i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
+		for (int row=0; row < param.num_shifts; row++) *v_psi[row][i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
+		for (int row=0; row < param.num_shifts; row++) *v_psi2[row][i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;	      
 	      }
 	    }
 	  }
@@ -1928,17 +1959,20 @@ namespace Chroma
 
 	      Handle< SystemSolver<LatticeFermion> > PP = S_r->qprop(state_r, param.prop.invParam);
 	      std::vector<SystemSolverResults_t> res = (*PP)(v_psi[m1], std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
+	      
 
 		  for (int t = 0; t < res.size(); t++){
 		      level_sum[m1] += 1.0 * res[t].n_count;
 		  }
+
+	      res = (*PP)(v_psi2[m1], std::vector<std::shared_ptr<const LatticeFermion>>(v_psi[m1].begin(), v_psi[m1].end()));
 
 
 	   }
 
 
 	   //now do all the dot products, first does just the (D+sI)^{-1} terms
-	   QDPIO::cout << "Entering dot products for product and single terms" << std::endl;
+	   QDPIO::cout << "Entering dot products for single inverse terms" << std::endl;
 	   StopWatch swatch_dots;
        swatch_dots.start();
 	   int clov_tracker = 0;
@@ -1965,11 +1999,26 @@ namespace Chroma
 	    }else{ //do_hpe	 
 		   do_disco(dbr[m1], v_chi, v_psi[m1], ft, param.use_ferm_state_links ? state->getLinks() : u, param.max_path_length);
 	    } //do_hpe
+
+	    QDPIO::cout << "Entering dot products for double inverse terms" << std::endl;
+	    std::vector<std::shared_ptr<LatticeFermion>> v_eta(Ns * Nc * dk);
+	    for (int col = 0; col < v_eta.size(); col++){v_eta[col].reset(new LatticeFermion);}
+	    for (int idk = 0; idk < dk; idk++){
+                    for (int col = 0; col < Nc * Ns; col++){
+                      if (col == 2 || col == 3 || col == 6 || col == 7 || col == 10 || col == 11){
+                         *v_eta[idk * Nc * Ns + col] = NOne * (Gamma(15) * *v_psi[m1][idk * Nc * Ns + col]);
+                      }else{
+                         *v_eta[idk * Nc * Ns + col] =  (Gamma(15) * *v_psi[m1][idk * Nc * Ns + col]);
+                     }
+		  } //col
+	    } //idk
+	    do_disco(dbrr[0][m1], v_eta, v_psi[m1], ft, param.use_ferm_state_links ? state->getLinks() : u, param.max_path_length);
+	    
 		    
 	    //now do all the dot products for the product combinations
 	    //changing things up in the interpolation
 	    //now need the terms with out the shift difference in front
-
+	      QDPIO::cout << "Entering dot products for triple inverse terms" << std::endl;
 	      for (int m2 = m1; m2 < param.num_shifts; m2++){
 		  assert(v_psi[m1].size() == v_psi[m2].size());
 		  std::vector<std::shared_ptr<LatticeFermion>> v_eta(Nc * Ns * dk);
@@ -1978,13 +2027,13 @@ namespace Chroma
 		  for (int idk = 0; idk < dk; idk++){
 		    for (int col = 0; col < Nc * Ns; col++){
 		      if (col == 2 || col == 3 || col == 6 || col == 7 || col == 10 || col == 11){
-			 *v_eta[idk * Nc * Ns + col] = NOne * (Gamma(15) * *v_psi[m1][idk * Nc * Ns + col]);
+			 *v_eta[idk * Nc * Ns + col] = NOne * (Gamma(15) * *v_psi2[m1][idk * Nc * Ns + col]);
 		      }else{
-			 *v_eta[idk * Nc * Ns + col] =  (Gamma(15) * *v_psi[m1][idk * Nc * Ns + col]); 
+			 *v_eta[idk * Nc * Ns + col] =  (Gamma(15) * *v_psi2[m1][idk * Nc * Ns + col]); 
 		     }
 		} //col
 	      } //idk
-		  do_disco(dbrs[m1][m2], v_eta, v_psi[m2], ft, param.use_ferm_state_links ? state->getLinks() : u, param.max_path_length);
+		  do_disco(dbrrs[m1][m2], v_eta, v_psi[m2], ft, param.use_ferm_state_links ? state->getLinks() : u, param.max_path_length);
 	    } //m2   
 
 	    } // m1
@@ -1997,15 +2046,23 @@ namespace Chroma
 	QDPIO::cout << "Updating the dbs " << std::endl;
         for (int m1 = 0; m1 < param.num_shifts; m1++){
 	    for (int m2 = m1; m2 < param.num_shifts; m2++){
-	    do_update(dbrs_mean[m1][m2], dbrs_var[m1][m2], dbrs[m1][m2], noise == 0);
-	    std::string filename_traces = "interp_traces_shifts_" + std::to_string(m1) + std::to_string(m2) + "_" + param.mass_label + "_" + param.probing_file;
-	    std::string filename_vars = "interp_variances_shifts_" + std::to_string(m1) + std::to_string(m2) + "_" + param.mass_label + "_" + param.probing_file;
-	    checkpoint_out(level, noise, rng_seed, param.num_shifts, level_sum, count, param.shifts, dbrs_mean[m1][m2], dbrs_var[m1][m2], filename_traces, filename_vars);
+	    do_update(dbrrs_mean[m1][m2], dbrrs_var[m1][m2], dbrrs[m1][m2], noise == 0);
+	    std::string filename_traces = "interp_traces_rrs_shifts_" + std::to_string(m1) + std::to_string(m2) + "_" + param.mass_label + "_" + param.probing_file;
+	    std::string filename_vars = "interp_variances_rrs_shifts_" + std::to_string(m1) + std::to_string(m2) + "_" + param.mass_label + "_" + param.probing_file;
+	    checkpoint_out(level, noise, rng_seed, param.num_shifts, level_sum, count, param.shifts, dbrrs_mean[m1][m2], dbrrs_var[m1][m2], filename_traces, filename_vars);
 	    }
+	    QDPIO::cout << "Updated the triple products" << std::endl;
 	    do_update(dbr_mean[m1], dbr_var[m1], dbr[m1], noise == 0);
-	    std::string filename_traces = "interp_traces_shifts_" + std::to_string(m1) + "_" + param.mass_label + "_" + param.probing_file;
-	    std::string filename_vars = "interp_variances_shifts_" + std::to_string(m1) + "_" + param.mass_label + "_" + param.probing_file;
+	    std::string filename_traces = "interp_traces_r_shifts_" + std::to_string(m1) + "_" + param.mass_label + "_" + param.probing_file;
+	    std::string filename_vars = "interp_variances_r_shifts_" + std::to_string(m1) + "_" + param.mass_label + "_" + param.probing_file;
 	    checkpoint_out(level, noise, rng_seed, param.num_shifts, level_sum, count, param.shifts, dbr_mean[m1], dbr_var[m1], filename_traces, filename_vars);
+	    QDPIO::cout << "Updated the single term" << std::endl;	  
+
+	    do_update(dbrr_mean[0][m1], dbrr_var[0][m1], dbrr[0][m1], noise == 0);
+	    filename_traces = "interp_traces_rr_shifts_" + std::to_string(m1) + "_" + param.mass_label + "_" + param.probing_file;
+            filename_vars = "interp_variances_rr_shifts_" + std::to_string(m1) + "_" + param.mass_label + "_" + param.probing_file;
+            checkpoint_out(level, noise, rng_seed, param.num_shifts, level_sum, count, param.shifts, dbrr_mean[0][m1], dbrr_var[0][m1], filename_traces, filename_vars);
+	    QDPIO::cout << "Updated the double products" << std::endl;
 	}
         QDP::RNG::savern(rng_seed);
         restart_seed_out(seed_file, rng_seed);
@@ -2019,22 +2076,24 @@ namespace Chroma
 	for (int k = 0; k < param.max_path_length+1; ++k){
         QDPIO::cout << "Retrieving product and single variances for displacement " << k << " and Gamma " << param.gamma_disp[1] <<  std::endl;
         //costs.rs_variances = retrieve_variances(dbrs_mean, dbrs_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
-        costs.rs_variances = retrieve_variances(dbrs_mean, dbrs_var, 1, noise+1, param.num_shifts, k, param.gamma_disp[1]);
+        costs.rrs_variances = retrieve_variances(dbrrs_mean, dbrrs_var, 1, noise+1, param.num_shifts, k, param.gamma_disp[1]);
         //costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, param.gamma_disp[0], param.gamma_disp[1]);
-        costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, k, param.gamma_disp[1]);
+        costs.rr_variances = retrieve_variances(dbrr_mean, dbrr_var, 1, noise+1, param.num_shifts, k, param.gamma_disp[1]);
+	costs.r_variances = retrieve_variances(dbr_mean, dbr_var, 1, noise+1, param.num_shifts, k, param.gamma_disp[1]);
 
 
 	//make sure all nodes get the same data
 	   for (int i = 0; i < costs.r_variances.size(); i++){
 	       QDPIO::cin >> costs.r_variances[i];
-	       for (int j = 0; j < costs.rs_variances[i].size(); j++){
-	       QDPIO::cin >> costs.rs_variances[i][j];
+	       for (int j = 0; j < costs.rrs_variances[i].size(); j++){
+	       QDPIO::cin >> costs.rrs_variances[i][j];
+	       QDPIO::cin >> costs.rr_variances[i][j];
 	       }
 	    }
 
 	//here is the call for interpolation
 	if (noise > 0){
-	mincosts = getMinShifts(costs, param.del_s, param.num_bcshifts, param.use_mg, k, param.gamma_disp[1]);
+	mincosts = RecInterp::getMinShifts(costs, param.del_s, param.num_bcshifts, param.use_mg, k, param.gamma_disp[1]);
 	//QDPIO::cout << "Cost for regular calculation of Disp = " << param.gamma_disp[0] << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
 	QDPIO::cout << "Cost for regular calculation of Disp = " << k  << ", Gamma = " << param.gamma_disp[1] << "for noise vector " << noise << " is : " << mincosts[0].reg_costs << std::endl;
 	}
@@ -2209,7 +2268,7 @@ namespace Chroma
       int nodelist = Layout::nodeNumber();
 
 
-      std::vector<MinCosts_t> mincosts;
+      std::vector<RecInterp::MinCosts_t> mincosts;
       if(params.param.use_interpolation){
       mincosts = getOptimalShifts(params.param, u);
       
@@ -2315,7 +2374,7 @@ namespace Chroma
 	QDPIO::cout << "Trace and Variance checkpoint files exist. Reading in the values." << std::endl;
 	file_t.close();
 	file_v.close();
-	restart = checkpoint_in(filename_traces, filename_vars, params.param.max_path_length);
+	restart = checkpoint_in(filename_traces, filename_vars, params.param.max_path_length, false);
   
 	//dbs.levels_avg[i] = restart.db_trace;
 	//dbs.levels_var[i] = restart.db_var;

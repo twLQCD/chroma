@@ -1,7 +1,7 @@
 //file for interpolating variances
 
 #include "chromabase.h"
-#include "meas/hadron/interpolation.h"
+#include "meas/hadron/recursive_interpolation.h"
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -10,7 +10,7 @@
 
 namespace Chroma {
 
-namespace Interp {
+namespace RecInterp{
 
 std::vector<double> interpolationShifts(multi1d<double>& bcs, multi1d<int>& num)
 {
@@ -71,14 +71,16 @@ void one_shift(MinCosts_t& mincosts, const CostHolder_t& costs){
 	double tmpmincost;
 	std::vector<double> level_vals;
 	std::vector<double> level_vars;
-	level_vals.resize(2);
-	level_vars.resize(2);
+	level_vals.resize(3);
+	level_vars.resize(3);
 	for (int i = 1; i < costs.shifts.size(); i++){
-		tmpmincost = std::sqrt((costs.level_costs[0] + costs.level_costs[i])*costs.rs_variances[0][i]) + std::sqrt(costs.level_costs[i]*costs.r_variances[i]);
-		level_vars[0] =costs.rs_variances[0][i];
-		level_vars[1] = costs.r_variances[i]; 
-		level_vals[0] = std::sqrt((costs.level_costs[0] + costs.level_costs[i])*costs.rs_variances[0][i]);
-		level_vals[1] = std::sqrt(costs.level_costs[i]*costs.r_variances[i]);
+		tmpmincost = std::sqrt((costs.level_costs[0] + 2*costs.level_costs[i])*costs.rrs_variances[0][i]) + std::sqrt(costs.level_costs[i]*costs.rr_variances[0][i]) + std::sqrt(costs.level_costs[i]*costs.r_variances[i]);
+		level_vars[0] = costs.rrs_variances[0][i];
+		level_vars[1] = costs.rr_variances[0][i];
+		level_vars[2] = costs.r_variances[i];
+		level_vals[0] = std::sqrt((costs.level_costs[0] + 2*costs.level_costs[i])*costs.rrs_variances[0][i]);
+		level_vals[1] = std::sqrt(costs.level_costs[i]*costs.rr_variances[0][i]);
+		level_vals[2] = std::sqrt(costs.level_costs[i]*costs.r_variances[i]);
 		if (std::pow(tmpmincost, 2.0) < tmpcost){
 		 	tmpcost = std::pow(tmpmincost,2.0);
 			mincosts.min_costs =  std::pow(tmpmincost,2.0);
@@ -100,16 +102,20 @@ void two_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
         double tmpmincost;
 	std::vector<double> level_vals;
 	std::vector<double> level_vars;
-	level_vars.resize(3);
-	level_vals.resize(3);
+	level_vars.resize(5);
+	level_vals.resize(5);
 	for (int i = 1; i < costs.shifts.size(); i++){
-		level_vals[0] = std::sqrt((costs.level_costs[0] + costs.level_costs[i])*costs.rs_variances[0][i]);
-		level_vars[0] = costs.rs_variances[0][i];
+		level_vals[0] = std::sqrt((costs.level_costs[0] + 2*costs.level_costs[i])*costs.rrs_variances[0][i]);
+		level_vars[0] = costs.rrs_variances[0][i];
+		level_vals[1] = std::sqrt(costs.level_costs[i] * costs.rr_variances[0][i]);
+		level_vars[1] = costs.rr_variances[0][i];
 		for (int j = i+1; j < costs.shifts.size(); j++){
-		level_vals[1] = std::sqrt((costs.level_costs[i] + costs.level_costs[j])*costs.rs_variances[i][j]);
-		level_vars[1] = costs.rs_variances[i][j];
-		level_vals[2] = std::sqrt(costs.level_costs[j] * costs.r_variances[j]);
-		level_vars[2] = costs.r_variances[j];
+		level_vals[2] = std::sqrt((costs.level_costs[i] + 2*costs.level_costs[j])*costs.rrs_variances[i][j]);
+		level_vars[2] = costs.rrs_variances[i][j];
+		level_vals[3] = std::sqrt( costs.level_costs[j] * costs.rr_variances[i][j]);
+		level_vars[3] = costs.rr_variances[i][j];
+		level_vals[4] = std::sqrt(costs.level_costs[j] * costs.r_variances[j]);
+		level_vars[4] = costs.r_variances[j];
 		tmpmincost = std::pow(std::accumulate(level_vals.begin(), level_vals.end(), 0.0),2.0);
 		if (tmpmincost < tmpcost){
 			tmpcost = tmpmincost;
@@ -134,19 +140,25 @@ void three_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
         double tmpmincost;
         std::vector<double> level_vals;
 	std::vector<double> level_vars;
-        level_vals.resize(4);
-	level_vars.resize(4);
+        level_vals.resize(7);
+	level_vars.resize(7);
         for (int i = 1; i < costs.shifts.size(); i++){
-                level_vals[0] = std::sqrt((costs.level_costs[0] + costs.level_costs[i])*costs.rs_variances[0][i]);
-		level_vars[0] = costs.rs_variances[0][i];
+                level_vals[0] = std::sqrt((costs.level_costs[0] + 2*costs.level_costs[i])*costs.rrs_variances[0][i]);
+		level_vars[0] = costs.rrs_variances[0][i];
+		level_vals[1] = std::sqrt( costs.level_costs[i] * costs.rr_variances[0][i] );
+		level_vars[1] = costs.rr_variances[0][i];
                 for (int j = i+1; j < costs.shifts.size(); j++){
-                level_vals[1] = std::sqrt((costs.level_costs[i] + costs.level_costs[j])*costs.rs_variances[i][j]);
-		level_vars[1] = costs.rs_variances[i][j];
+                level_vals[2] = std::sqrt((costs.level_costs[i] + 2*costs.level_costs[j])*costs.rrs_variances[i][j]);
+		level_vars[2] = costs.rrs_variances[i][j];
+		level_vals[3] = std::sqrt( costs.level_costs[j] * costs.rr_variances[i][j]);
+		level_vars[3] = costs.rr_variances[i][j];
 			for (int k = j+1; k < costs.shifts.size(); k++){
-			level_vals[2] = std::sqrt( (costs.level_costs[j] + costs.level_costs[k]) * costs.rs_variances[j][k]);
-			level_vars[2] =  costs.rs_variances[j][k];
-                	level_vals[3] = std::sqrt(costs.level_costs[k] * costs.r_variances[k]);
-			level_vars[3] = costs.r_variances[k];
+			level_vals[4] = std::sqrt( (costs.level_costs[j] + 2*costs.level_costs[k]) * costs.rrs_variances[j][k]);
+			level_vars[4] =  costs.rrs_variances[j][k];
+			level_vals[5] = std::sqrt( costs.level_costs[k] * costs.rr_variances[j][k]);
+			level_vars[5] = costs.rr_variances[j][k];
+                	level_vals[6] = std::sqrt(costs.level_costs[k] * costs.r_variances[k]);
+			level_vars[6] = costs.r_variances[k];
                 	tmpmincost = std::pow(std::accumulate(level_vals.begin(), level_vals.end(), 0.0),2.0);
                 	if (tmpmincost < tmpcost){
                         	tmpcost = tmpmincost;
@@ -173,22 +185,30 @@ void four_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
         double tmpmincost;
         std::vector<double> level_vals;
 	std::vector<double> level_vars;
-        level_vals.resize(5);
-	level_vars.resize(5);
+        level_vals.resize(9);
+	level_vars.resize(9);
         for (int i = 1; i < costs.shifts.size(); i++){
-                level_vals[0] = std::sqrt((costs.level_costs[0] + costs.level_costs[i])*costs.rs_variances[0][i]);
-		level_vars[0] = costs.rs_variances[0][i];
+                level_vals[0] = std::sqrt((costs.level_costs[0] + 2*costs.level_costs[i])*costs.rrs_variances[0][i]);
+		level_vars[0] = costs.rrs_variances[0][i];
+		level_vals[1] = std::sqrt( costs.level_costs[i] * costs.rr_variances[0][i]);
+		level_vars[1] = costs.rr_variances[0][i];
                 for (int j = i+1; j < costs.shifts.size(); j++){
-                level_vals[1] = std::sqrt((costs.level_costs[i] + costs.level_costs[j])*costs.rs_variances[i][j]);
-		level_vars[1] = costs.rs_variances[i][j];
+                level_vals[2] = std::sqrt((costs.level_costs[i] + 2*costs.level_costs[j])*costs.rrs_variances[i][j]);
+		level_vars[2] = costs.rrs_variances[i][j];
+		level_vals[3] = std::sqrt( costs.level_costs[j] * costs.rr_variances[i][j]);
+		level_vars[3] = costs.rr_variances[i][j];
                         for (int k = j+1; k < costs.shifts.size(); k++){
-                        level_vals[2] = std::sqrt( (costs.level_costs[j] + costs.level_costs[k]) * costs.rs_variances[j][k]);
-			level_vars[2] = costs.rs_variances[j][k];
+                        level_vals[4] = std::sqrt( (costs.level_costs[j] + 2*costs.level_costs[k]) * costs.rrs_variances[j][k]);
+			level_vars[4] = costs.rrs_variances[j][k];
+			level_vals[5] = std::sqrt( costs.level_costs[k] * costs.rr_variances[j][k]);
+			level_vars[5] = costs.rr_variances[j][k];
 			for (int l = k+1; l < costs.shifts.size(); l++){
-			level_vals[3] = std::sqrt( (costs.level_costs[k] + costs.level_costs[l])*costs.rs_variances[k][l]);
-			level_vars[3] = costs.rs_variances[k][l];
-                        level_vals[4] = std::sqrt(costs.level_costs[l] * costs.r_variances[l]);
-			level_vars[4] = costs.r_variances[l];
+			level_vals[6] = std::sqrt( (costs.level_costs[k] + 2*costs.level_costs[l])*costs.rrs_variances[k][l]);
+			level_vars[6] = costs.rrs_variances[k][l];
+			level_vals[7] = std::sqrt( costs.level_costs[l] * costs.rr_variances[k][l]);
+			level_vars[7] = costs.rr_variances[k][l];
+                        level_vals[8] = std::sqrt(costs.level_costs[l] * costs.r_variances[l]);
+			level_vars[8] = costs.r_variances[l];
                         tmpmincost = std::pow(std::accumulate(level_vals.begin(), level_vals.end(), 0.0),2.0);
                         if (tmpmincost < tmpcost){
                                 tmpcost = tmpmincost;
@@ -217,25 +237,35 @@ void five_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
         double tmpmincost;
         std::vector<double> level_vals;
 	std::vector<double> level_vars;
-        level_vals.resize(6);
-	level_vars.resize(6);
+        level_vals.resize(11);
+	level_vars.resize(11);
         for (int i = 1; i < costs.shifts.size(); i++){
-                level_vals[0] = std::sqrt((costs.level_costs[0] + costs.level_costs[i])*costs.rs_variances[0][i]);
-		level_vars[0] = costs.rs_variances[0][i];
+                level_vals[0] = std::sqrt((costs.level_costs[0] + 2*costs.level_costs[i])*costs.rrs_variances[0][i]);
+		level_vars[0] = costs.rrs_variances[0][i];
+		level_vals[1] = std::sqrt( costs.level_costs[i] * costs.rr_variances[0][i]);
+		level_vars[1] = costs.rr_variances[0][i];
                 for (int j = i+1; j < costs.shifts.size(); j++){
-                level_vals[1] = std::sqrt((costs.level_costs[i] + costs.level_costs[j])*costs.rs_variances[i][j]);
-		level_vars[1] = costs.rs_variances[i][j];
+                level_vals[2] = std::sqrt((costs.level_costs[i] + 2*costs.level_costs[j])*costs.rrs_variances[i][j]);
+		level_vars[2] = costs.rrs_variances[i][j];
+		level_vals[3] = std::sqrt( costs.level_costs[j] * costs.rr_variances[i][j]);
+		level_vars[3] = costs.rr_variances[i][j];
                         for (int k = j+1; k < costs.shifts.size(); k++){
-                        level_vals[2] = std::sqrt( (costs.level_costs[j] + costs.level_costs[k]) * costs.rs_variances[j][k]);
-			level_vars[2] =  costs.rs_variances[j][k];
+                        level_vals[4] = std::sqrt( (costs.level_costs[j] + 2*costs.level_costs[k]) * costs.rrs_variances[j][k]);
+			level_vars[4] = costs.rrs_variances[j][k];
+			level_vals[5] = std::sqrt( costs.level_costs[k] * costs.rr_variances[j][k]);
+			level_vars[5] = costs.rr_variances[j][k];
                         for (int l = k+1; l < costs.shifts.size(); l++){
-                        level_vals[3] = std::sqrt( (costs.level_costs[k] + costs.level_costs[l])*costs.rs_variances[k][l]);
-			level_vars[3] = costs.rs_variances[k][l];
+                        level_vals[6] = std::sqrt( (costs.level_costs[k] + costs.level_costs[l])*costs.rrs_variances[k][l]);
+			level_vars[6] = costs.rrs_variances[k][l];
+			level_vals[7] = std::sqrt( costs.level_costs[l] * costs.rr_variances[k][l]);
+			level_vars[7] = costs.rr_variances[k][l];
 			for (int m = l+1; m < costs.shifts.size(); m++){
-			level_vals[4] = std::sqrt( (costs.level_costs[l] + costs.level_costs[m]) * costs.rs_variances[l][m]);
-			level_vars[4] = costs.rs_variances[l][m];
-                        level_vals[5] = std::sqrt(costs.level_costs[m] * costs.r_variances[m]);
-			level_vars[5] = costs.r_variances[m];
+			level_vals[8] = std::sqrt( (costs.level_costs[l] + 2*costs.level_costs[m]) * costs.rrs_variances[l][m]);
+			level_vars[8] = costs.rrs_variances[l][m];
+			level_vals[9] = std::sqrt( costs.level_costs[m] * costs.rr_variances[l][m]);
+			level_vars[9] = costs.rr_variances[l][m];
+                        level_vals[10] = std::sqrt(costs.level_costs[m] * costs.r_variances[m]);
+			level_vars[10] = costs.r_variances[m];
                         tmpmincost = std::pow(std::accumulate(level_vals.begin(), level_vals.end(), 0.0),2.0);
                         if (tmpmincost < tmpcost){
                                 tmpcost = tmpmincost;
@@ -266,28 +296,40 @@ void six_shifts(MinCosts_t& mincosts, const CostHolder_t& costs){
         double tmpmincost;
         std::vector<double> level_vals;
 	std::vector<double> level_vars;
-        level_vals.resize(7);
-	level_vars.resize(7);
+        level_vals.resize(13);
+	level_vars.resize(13);
         for (int i = 1; i < costs.shifts.size(); i++){
-                level_vals[0] = std::sqrt((costs.level_costs[0] + costs.level_costs[i])*costs.rs_variances[0][i]);
-		level_vars[0] = costs.rs_variances[0][i];
+                level_vals[0] = std::sqrt((costs.level_costs[0] + 2*costs.level_costs[i])*costs.rrs_variances[0][i]);
+		level_vars[0] = costs.rrs_variances[0][i];
+		level_vals[1] = std::sqrt( costs.level_costs[i] * costs.rr_variances[0][i]);
+		level_vars[1] = costs.rr_variances[0][i];
                 for (int j = i+1; j < costs.shifts.size(); j++){
-                level_vals[1] = std::sqrt((costs.level_costs[i] + costs.level_costs[j])*costs.rs_variances[i][j]);
-		level_vars[1] = costs.rs_variances[i][j];
+                level_vals[2] = std::sqrt((costs.level_costs[i] + 2*costs.level_costs[j])*costs.rrs_variances[i][j]);
+		level_vars[2] = costs.rrs_variances[i][j];
+		level_vals[3] = std::sqrt( costs.level_costs[j] * costs.rr_variances[i][j]);
+		level_vars[3] = costs.rr_variances[i][j];
                         for (int k = j+1; k < costs.shifts.size(); k++){
-                        level_vals[2] = std::sqrt( (costs.level_costs[j] + costs.level_costs[k]) * costs.rs_variances[j][k]);
-			level_vars[2] = costs.rs_variances[j][k];
+                        level_vals[4] = std::sqrt( (costs.level_costs[j] + 2*costs.level_costs[k]) * costs.rrs_variances[j][k]);
+			level_vars[4] = costs.rrs_variances[j][k];
+			level_vals[5] = std::sqrt( costs.level_costs[k] * costs.rr_variances[j][k]);
+			level_vars[5] = costs.rr_variances[j][k];
                         for (int l = k+1; l < costs.shifts.size(); l++){
-                        level_vals[3] = std::sqrt( (costs.level_costs[k] + costs.level_costs[l])*costs.rs_variances[k][l]);
-			level_vars[3] = costs.rs_variances[k][l];
+                        level_vals[6] = std::sqrt( (costs.level_costs[k] + 2*costs.level_costs[l])*costs.rrs_variances[k][l]);
+			level_vars[6] = costs.rrs_variances[k][l];
+			level_vals[7] = std::sqrt( costs.level_costs[l] * costs.rr_variances[k][l]);
+			level_vars[7] = costs.rr_variances[k][l];
                         for (int m = l+1; m < costs.shifts.size(); m++){
-			level_vars[4] =  costs.rs_variances[l][m];
-                        level_vals[4] = std::sqrt( (costs.level_costs[l] + costs.level_costs[m]) * costs.rs_variances[l][m]);
+			level_vars[8] =  costs.rrs_variances[l][m];
+                        level_vals[8] = std::sqrt( (costs.level_costs[l] + 2*costs.level_costs[m]) * costs.rrs_variances[l][m]);
+			level_vals[9] = std::sqrt( costs.level_costs[m] * costs.rr_variances[l][m]);
+			level_vars[9] = costs.rr_variances[l][m];
 			for (int n = m+1; n < costs.shifts.size(); n++){
-			level_vars[5] = costs.rs_variances[m][n];
-			level_vals[5] = std::sqrt( (costs.level_costs[m] + costs.level_costs[n]) * costs.rs_variances[m][n]);
-                        level_vals[6] = std::sqrt(costs.level_costs[n] * costs.r_variances[n]);
-			level_vars[6] = costs.r_variances[n];
+			level_vars[10] = costs.rrs_variances[m][n];
+			level_vals[10] = std::sqrt( (costs.level_costs[m] + 2*costs.level_costs[n]) * costs.rrs_variances[m][n]);
+			level_vals[11] = std::sqrt( costs.level_costs[n] * costs.rr_variances[m][n]);
+			level_vars[11] = costs.rr_variances[m][n];
+                        level_vals[12] = std::sqrt(costs.level_costs[n] * costs.r_variances[n]);
+			level_vars[12] = costs.r_variances[n];
                         tmpmincost = std::pow(std::accumulate(level_vals.begin(), level_vals.end(), 0.0),2.0);
                         if (tmpmincost < tmpcost){
                                 tmpcost = tmpmincost;
@@ -320,15 +362,11 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
 	case 1:
 	if (costs.shifts.size() < 1){
 	QDPIO::cout << "Not Enough Shifts" << std::endl;
-	//return mincosts;
 	break;
 	}else{
-	//mincosts.min_costs = 0.0;
-	//mincosts.reg_costs = 0.0;
 	mincosts.shifts.resize(1);
-	mincosts.optimal_level_costs.resize(2);
-	mincosts.optimal_level_variances.resize(2);
-	//mincosts = one_shift(mincosts, costs);
+	mincosts.optimal_level_costs.resize(3);
+	mincosts.optimal_level_variances.resize(3);
 	one_shift(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
 	QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
@@ -350,15 +388,11 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
 	case 2:
         if (costs.shifts.size() < 2){
         QDPIO::cout << "Not Enough Shifts" << std::endl;
-        //return mincosts;
         break;
         }else{
-        //mincosts.min_costs = 0.0;
-        //mincosts.reg_costs = 0.0;
         mincosts.shifts.resize(2);
-        mincosts.optimal_level_costs.resize(3);
-        mincosts.optimal_level_variances.resize(3);
-	//mincosts = two_shifts(mincosts, costs);
+        mincosts.optimal_level_costs.resize(5);
+        mincosts.optimal_level_variances.resize(5);
 	two_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
@@ -380,15 +414,11 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
 	case 3:
         if (costs.shifts.size() < 3){
         QDPIO::cout << "Not Enough Shifts" << std::endl;
-        //return mincosts;
         break;
         }else{
-        //mincosts.min_costs = 0.0;
-        //mincosts.reg_costs = 0.0;
         mincosts.shifts.resize(3);
-        mincosts.optimal_level_costs.resize(4);
-        mincosts.optimal_level_variances.resize(4);
-	//mincosts = three_shifts(mincosts, costs);
+        mincosts.optimal_level_costs.resize(7);
+        mincosts.optimal_level_variances.resize(7);
 	three_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
@@ -410,15 +440,11 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
 	case 4:
         if (costs.shifts.size() < 4){
         QDPIO::cout << "Not Enough Shifts" << std::endl;
-        //return mincosts;
         break;
         }else{
-        //mincosts.min_costs = 0.0;
-        //mincosts.reg_costs = 0.0;
         mincosts.shifts.resize(4);
-        mincosts.optimal_level_costs.resize(5);
-        mincosts.optimal_level_variances.resize(5);
-	//mincosts = four_shifts(mincosts, costs);
+        mincosts.optimal_level_costs.resize(9);
+        mincosts.optimal_level_variances.resize(9);
 	four_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
@@ -440,15 +466,11 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
 	case 5:
         if (costs.shifts.size() < 5){
         QDPIO::cout << "Not Enough Shifts" << std::endl;
-        //return mincosts;
         break;
         }else{
-        //mincosts.min_costs = 0.0;
-        //mincosts.reg_costs = 0.0;
         mincosts.shifts.resize(5);
-        mincosts.optimal_level_costs.resize(6);
-        mincosts.optimal_level_variances.resize(6);
-	//mincosts = five_shifts(mincosts, costs);
+        mincosts.optimal_level_costs.resize(11);
+        mincosts.optimal_level_variances.resize(11);
 	five_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
@@ -470,15 +492,11 @@ MinCosts_t findMinShifts(const int& num_shifts_to_calc, const CostHolder_t& cost
 	case 6:
         if (costs.shifts.size() < 6){
         QDPIO::cout << "Not Enough Shifts" << std::endl;
-        //return mincosts;
         break;
         }else{
-        //mincosts.min_costs = 0.0;
-        //mincosts.reg_costs = 0.0;
         mincosts.shifts.resize(6);
-        mincosts.optimal_level_costs.resize(7);
-        mincosts.optimal_level_variances.resize(7);
-	//mincosts = six_shifts(mincosts, costs);
+        mincosts.optimal_level_costs.resize(13);
+        mincosts.optimal_level_variances.resize(13);
 	six_shifts(mincosts, costs);
 	QDPIO::cout << "The regular cost is : " << mincosts.reg_costs << std::endl;
         QDPIO::cout << "The minimum shifts(s) for " << num_shifts_to_calc << " shift(s) are : " << std::endl;
@@ -527,14 +545,14 @@ std::vector<double> interpolate(const std::vector<double>& shifts, const std::ve
                 int_vals[i] = spline(intshifts[i]);
            }
 	   }
-	} else if (shifts.size() == 3){
+	/*} else if (shifts.size() == 3){
 	   for (int i = 0; i < int_vals.size(); i++){
 		if (intshifts[i] < shifts[1]){
 		   int_vals[i] = linearInterpolation(vars[0], vars[1], shifts[0], shifts[1], intshifts[i]);
 		}else{
 		   int_vals[i] = linearInterpolation(vars[1], vars[2], shifts[1], shifts[2], intshifts[i]);
 		}
-	   }
+	   }*/
 	}else if (shifts.size() == 2) {
 	   for (int i = 0; i < int_vals.size(); i++){
 		int_vals[i] = linearInterpolation(vars[0], vars[1], shifts[0], shifts[1], intshifts[i]);
@@ -549,118 +567,14 @@ std::vector<double> interpolate(const std::vector<double>& shifts, const std::ve
 }
 
 
-/*InterpPow_t findP(const CostHolder_t& costs)
-{
-	//QDPIO::cout << "In findP " << std::endl;
-	//QDPIO::cout << "Using " << costs.shifts.size() << " total shifts " << std::endl;
-	InterpPow_t int_p;
-	//QDPIO::cout << "Initializing InterpPow struct " << std::endl;
-	int_p.p_a.resize(test_shifts_a.size());
-	int_p.p_d.resize(test_shifts_d.size());
-	std::vector<double> pa;
-	std::vector<double> pd;
-	//using default values [1:.01:3]
-	double tmp = 1.0;
-	pa.push_back(tmp);
-	//QDPIO::cout << "Initializing the power vector " << std::endl;
-	while( tmp < 3.0){
-	tmp += 0.01;
-	pa.push_back(tmp);
-	}
-	pd.resize(pa.size());
-	pd = pa;
-
-	//first do the variances down.
-	//QDPIO::cout << "Finding vertical p " << std::endl;
-	std::vector<double> tvars;
-	std::vector<double> tshifts;
-	std::string dir = "vertical";
-	for (int i = 1; i < costs.shifts.size(); i++){
-	     tshifts = slice(costs.shifts, 0, i);
-	     tvars.clear();
-	     for (int j = 0; j < i+1; j++){
-	     tvars.push_back(costs.rs_variances[j][i]);
-	     }
-	     std::vector<double> int_vals;
-	     std::vector<double> norms;
-	     norms.resize(pd.size());
-	     std::vector<double> intshifts = tshifts;
-	     //test point will be the last shift here
-	     //old
-	     //intshifts.insert(intshifts.end(), test_shifts_d[i-1]);
-	     //new
-	     intshifts.insert(intshifts.end()-1, test_shifts_d[i-1]);
-	     std::vector<double> compare_vals = tvars;
-	     //test point will be the last value here
-	     //old
-	     //compare_vals.insert(compare_vals.end(), test_vals_d[i-1]);
-	     //new
-	     compare_vals.insert(compare_vals.end()-1, test_vals_d[i-1]);
-	     //QDPIO::cout << " On column " << i << " and shifts size is " << tshifts.size() << " with sample size " << tvars.size() << std::endl;
-	     for (int j = 0; j < pd.size();  j++){
-		tvars = raiseToPow(tvars, 1.0/pd[j]);
-		int_vals = raiseToPow(interpolate(tshifts, tvars, intshifts, dir), pd[j]);
-		tvars = raiseToPow(tvars, pd[j]);
-		norms[j] = vecnorm2(vecdiff(int_vals,compare_vals));
-	     }
-	     std::vector<double>::iterator min_p = std::min_element(norms.begin(), norms.end());
-	     int_p.p_d[i-1] = pd[std::distance(norms.begin(), min_p)];
-	}		
-	
-	//QDPIO::cout << "Finding the horizontal p " << std::endl;	
-	dir = "horizontal";
-	for (int i = 0; i < costs.shifts.size()-1; i++){
-	     tshifts = slice(costs.shifts,i,costs.shifts.size()-1);
-	     tvars.clear();
-	     for (int j = i; j < costs.shifts.size(); j++){
-		tvars.push_back(costs.rs_variances[i][j]);
-	     }
-             std::vector<double> int_vals;
-             std::vector<double> norms;
-             norms.resize(pa.size());
-             std::vector<double> intshifts = tshifts;
-	     //test point will be there first shift here
-	     //old
-	     //intshifts.insert(intshifts.begin(), test_shifts_a[i]);
-	     //new
-	     intshifts.insert(intshifts.begin()+1, test_shifts_a[i]);
-	     std::vector<double> compare_vals = tvars;
-	     //test point will be the first value here
-	     //old
-	     //compare_vals.insert(compare_vals.begin(), test_vals_a[i]);
-	     //new
-	     compare_vals.insert(compare_vals.begin()+1, test_vals_a[i]);
-	     //QDPIO::cout << " On row " << i << " and shifts size is " << tshifts.size() << " with sample size " << tvars.size() << std::endl;
-             for (int j = 0; j < pa.size(); j++){
-                tvars = raiseToPow(tvars, 1.0/pa[j]);
-                int_vals = raiseToPow(interpolate(tshifts, tvars, intshifts, dir), pa[j]);
-                tvars = raiseToPow(tvars, pa[j]);
-                norms[j] = vecnorm2(vecdiff(int_vals,compare_vals));
-             }
-             std::vector<double>::iterator min_p = std::min_element(norms.begin(), norms.end());
-             int_p.p_a[i] = pa[std::distance(norms.begin(), min_p)];
-        }
-	return int_p;
-
-} */
 
 CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& dels, multi1d<int>& num_bcshifts, const bool& use_mg)
 {
 
-	//QDPIO::cout << "In interpolate_variances " << std::endl;
 	CostHolder_t int_vars;
-	//for now just do a uniform shift-mesh discretization
-	/*std::vector<double> intshifts;
-	double tmp = 0.0;
-	intshifts.push_back(tmp);
-	while( tmp < costs.shifts[costs.shifts.size()-1]){
-	tmp += dels;
-	intshifts.push_back(tmp);
-	}
-	intshifts = vecunion(intshifts, costs.shifts);
-	*/
 
 	//for now, hardcoding in some small shifts...blehhhh
+	//this needs to change!!! The small shifts should be user defined
 	multi1d<double> bcs;
 	bcs.resize(2);
 	bcs[0] = -5.0;
@@ -669,9 +583,10 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& d
 	nums.resize(1);
 	nums[0] = 4;
 	std::vector<double> lowshifts = interpolationShifts(bcs, nums);
-	//QDPIO::cout << "The smallest shifts for interpolation are : " << std::endl;
-	//for (auto i : lowshifts) {QDPIO::cout << i << std::endl; }
+	//std::cout << "The smallest shifts for interpolation are : " << std::endl;
+	//for (auto i : lowshifts) {std::cout << i << std::endl; }
 
+	QDPIO::cout << "Setting the rest of the shifts" << std::endl;
 	std::vector<double> tmpintshifts = interpolationShifts(dels, num_bcshifts);
 	std::vector<double> intshifts;
 	for (int i = 0; i < lowshifts.size(); i++){intshifts.push_back(lowshifts[i]);}
@@ -679,9 +594,16 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& d
 	tmpintshifts.clear();
 	lowshifts.clear();
 	
+	QDPIO::cout << "Finding the union of the shifts" << std::endl;
+	//now have all the shifts used for evaluating the polynomials.
 	intshifts = vecunion(intshifts, costs.shifts);
+
+	//allocate the space for the predicted variances
+	QDPIO::cout << "Allocating holders for the predicted variances" << std::endl;
 	int_vars.r_variances.resize(intshifts.size());	
-	int_vars.rs_variances.resize(intshifts.size(), std::vector<double>(intshifts.size()));
+	int_vars.rrs_variances.resize(intshifts.size(), std::vector<double>(intshifts.size()));
+	int_vars.rr_variances.resize(intshifts.size(), std::vector<double>(intshifts.size()));
+
 
 	QDPIO::cout << "Printing the shifts used for interpolation " << std::endl;
 	for (int i = 0; i < intshifts.size(); i++){
@@ -694,13 +616,31 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& d
 	for (int i = 0; i < costs.shifts.size(); ++i){
 		tvars.push_back(std::log(costs.r_variances[i]));
 	}
-	boost::math::interpolators::pchip_matlab<std::vector<double>> spline(std::move(tshifts), std::move(tvars));	
+	boost::math::interpolators::pchip_matlab<std::vector<double>> r_spline(std::move(tshifts), std::move(tvars));	
 	//assign the values
 	QDPIO::cout << "Printing interpolated (D+sI)^{-1} values " << std::endl;
 	for (int i = 0; i < intshifts.size(); i++){
-		int_vars.r_variances[i] = std::exp(spline(intshifts[i]));
+		int_vars.r_variances[i] = std::exp(r_spline(intshifts[i]));
 		QDPIO::cout << int_vars.r_variances[i] << std::endl;
 	}
+	tvars.clear();
+
+	//do the next easy part...interpolate the (D+sI)^{-1}\Gamma(D+sI)^{-1} values
+	//reassign the shifts because of std::move
+	tshifts = costs.shifts;
+	for (int i = 0; i < costs.shifts.size(); ++i){
+		tvars.push_back(std::log(costs.rr_variances[0][i]));
+	}
+	boost::math::interpolators::pchip_matlab<std::vector<double>> rr_spline(std::move(tshifts), std::move(tvars));
+	//assign the values. Since the double inverse terms always include the same shifts, this is easy
+	for (int i = 0; i < intshifts.size(); i++){
+		for (int j = i; j < intshifts.size(); j++){
+		int_vars.rr_variances[i][j] = std::exp(rr_spline(intshifts[j]));
+		}
+	}
+
+	
+
 
 	QDPIO::cout << "Interpolating the boundary values " << std::endl;
 	tvars.clear();
@@ -709,40 +649,23 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& d
 	for (int i = 0; i < costs.shifts.size(); ++i){
 		QDPIO::cout << "On boundary " << i << std::endl;
 		//tvars[i] = std::log(costs.rs_variances[i][i]);
-		tvars.push_back(std::log(costs.rs_variances[i][i]));
+		tvars.push_back(std::log(costs.rrs_variances[i][i]));
 	}
 	QDPIO::cout << "Evaluating polynomial " << std::endl;
 	boost::math::interpolators::pchip_matlab<std::vector<double>> diag_spline(std::move(tshifts), std::move(tvars));
 	for (int i = 0; i < intshifts.size(); ++i){
-		int_vars.rs_variances[i][i] = std::exp(diag_spline(intshifts[i]));
+		int_vars.rrs_variances[i][i] = std::exp(diag_spline(intshifts[i]));
 	}
 
 	
 
-	//QDPIO::cout << "Printing info from the interpolation: " <<std::endl;
-	//QDPIO::cout << spline << std::endl;
-	//QDPIO::cout << "Performed interpolation of (D+sI)^{-1} " << std::endl;
-
-	//get the p values
-	//InterpPow_t int_p = findP(costs, test_shifts_a, test_vals_a, test_shifts_d, test_vals_d);
- 	//print the power values
- 	/* QDPIO::cout << "Powers horizontally are : " << std::endl;
- 	for (int i = 0; i < int_p.p_a.size(); i++){
-		QDPIO::cout << int_p.p_a[i] << std::endl;
-	}
-	QDPIO::cout << "Powers vertically are : " << std::endl;	
-        for (int i = 0; i < int_p.p_d.size(); i++){
-                QDPIO::cout << int_p.p_d[i] << std::endl;
-        } */
-
-	//int_vars.rs_variances.resize(intshifts.size(), std::vector<double>(intshifts.size()));
 
 	//here need to interpolate down first to get the values at some shift
 	QDPIO::cout << "Interpolating vertically" << std::endl;
 	std::vector<std::vector<double>> tmpvals_d;
 	tmpvals_d.resize(costs.shifts.size()-1, std::vector<double>(costs.shifts.size()));
 	//okay, I know that this is vertical interpolation, but we have switched things up so 
-	//the matlab BC's are better than boosts, so the flag is horizontal
+	//the matlab BC's for the derivatives are better than boosts, so the flag is horizontal
 	std::string dir = "horizontal";
 	for ( int i = 1; i < costs.shifts.size(); i++){
 		int it = find_shift(intshifts, costs.shifts[i]);
@@ -753,10 +676,8 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& d
 		tmpvals_d[i-1].resize(s_intshifts.size());
 		for (int j = 0; j < i+1; j++){
 			//tvars.push_back(costs.rs_variances[j][i]);
-			tvars.push_back(std::log(costs.rs_variances[j][i]));
+			tvars.push_back(std::log(costs.rrs_variances[j][i]));
 		}
-		//tvars = raiseToPow(tvars, 1.0/int_p.p_d[i-1]);
-		//tmpvals_d[i-1] = raiseToPow(interpolate(tshifts, tvars, s_intshifts, dir), int_p.p_d[i-1]);
 		tmpvals_d[i-1] = interpolate(tshifts, tvars, s_intshifts, dir);
 		for (int j = 0; j < tmpvals_d[i-1].size(); j++){
 			tmpvals_d[i-1][j] = std::exp(tmpvals_d[i-1][j]);
@@ -764,196 +685,64 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& d
 		
 	}
 
-        /*QDPIO::cout << "Printing the intermediate products down " << std::endl;
-        for (int i = 0; i < costs.shifts.size()-1; i++){
-              QDPIO::cout << "Printing column " << i << std::endl;
-              for (int j = 0; j < tmpvals_d[i].size(); j++){
-              QDPIO::cout << tmpvals_d[i][j] << std::endl;
-              }
-        }*/
 
+
+	// this portion does the interpolation horizontally across the region defined by the sampled 
+	// variances of the product terms
 	QDPIO::cout << "Interpolating horizontally " << std::endl;
 	int k = 0; int i = 0; int t = 0;
 	std::vector<int> ix = intersect(slice(costs.shifts, 1, costs.shifts.size()-1), intshifts);
-	//QDPIO::cout << "Shift intersection is : " << std::endl;
-	for (auto ii : ix){ QDPIO::cout << ii << std::endl;}
+	//for (auto ii : ix){ QDPIO::cout << ii << std::endl;}
 
-	//std::vector<double> s_intshifts;
-	//QDPIO::cout << "Starting loop " << std::endl;
 	while (k < intshifts.size()-1){
-	//QDPIO::cout << "Grabbing an iterator " << std::endl;
-	std::vector<double>::iterator it = int_vars.rs_variances[k].begin();
+	std::vector<double>::iterator it = int_vars.rrs_variances[k].begin();
 	it += k;
 	std::vector<double> tvars;
-	//QDPIO::cout << "Setting the variances to be interpolated" << std::endl;
 	if (!isequal(k, ix[i]))
 	{
-	tvars.push_back(std::log(int_vars.rs_variances[k][k]));
+	tvars.push_back(std::log(int_vars.rrs_variances[k][k]));
 	for (int j = i; j < costs.shifts.size()-1; j++){
-	    //QDPIO::cout << "On iteration " << k << " and on column " << j << ", not on a boundary " << std::endl;
 	    tvars.push_back(std::log(tmpvals_d[j][k]));
 	}
 	} else {
         for (int j = i; j < costs.shifts.size()-1; j++){
-	    //QDPIO::cout << "On iteration " << k << " and on column " << j << ", on a boundary " << std::endl;
             tvars.push_back(std::log(tmpvals_d[j][k]));
 	}
 	}
 	
 	std::vector<double> tshifts = slice(costs.shifts, t, costs.shifts.size()-1);
-	//QDPIO::cout << "Setting the shifts to be interpolated" << std::endl;
 	if (!float_ismember(tshifts, intshifts[k]))
 	{
 	tshifts.erase(tshifts.begin());
 	tshifts.insert(tshifts.begin(), intshifts[k]);
 	}
 	std::vector<double> s_intshifts = slice(intshifts, k, intshifts.size()-1);
-	//hopefully to control floating point errors...
+
+	//control floating point errors
 	s_intshifts.erase(s_intshifts.begin());
 	s_intshifts.insert(s_intshifts.begin(), tshifts[0]);
-	//QDPIO::cout << "On iteration " << k << " with shifts : " << std::endl;
-	//for (auto ii : tshifts){
-	//	QDPIO::cout << ii << std::endl;
-	//}
-	//QDPIO::cout << "and variances : " << std::endl;
-	//for (auto ii : tvars){
-	//	QDPIO::cout << ii << std::endl;
-	//}
+
 	tvars = interpolate(tshifts, tvars, s_intshifts, dir);
 	for (int j = 0; j < tvars.size(); j++){
 		tvars[j] = std::exp(tvars[j]);
 	}
-	int_vars.rs_variances[k].insert(it, tvars.begin(), tvars.end());
+	int_vars.rrs_variances[k].insert(it, tvars.begin(), tvars.end());
 
 	k += 1;
 	if ( k > ix[i]){ i += 1;}
 	if (isequal(k, ix[i])) {t += 1;}
 	}
-	int_vars.rs_variances[k].insert(int_vars.rs_variances[k].end(), costs.rs_variances[costs.shifts.size()-1][costs.shifts.size()-1]);
+	int_vars.rrs_variances[k].insert(int_vars.rrs_variances[k].end(), costs.rrs_variances[costs.shifts.size()-1][costs.shifts.size()-1]);
 
 
-	//QDPIO::cout << "Printing the intermediate products down " << std::endl;
-	//for (int i = 0; i < costs.shifts.size()-1; i++){
-	//	QDPIO::cout << "Printing column " << i << std::endl;
-	//	for (int j = 0; j < tmpvals_d[i].size(); j++){
-	//	QDPIO::cout << tmpvals_d[i][j] << std::endl;
-	//	}
-	//}
-
-	//now interopolate across
-	//original
-	/* QDPIO::cout << "Interpolating horizontally" << std::endl;
-	int i = 0;
-	int it = 1;
-	dir = "horizontal";
-	while ( it <= costs.shifts.size()-1){
-		std::vector<double>::iterator itt = int_vars.rs_variances[i].begin();
-		itt += i;
-		std::vector<double> tmp;
-		std::vector<double> tshifts = slice(costs.shifts,it,costs.shifts.size()-1);
-		tshifts.insert(tshifts.begin(), intshifts[i]);
-		std::vector<double> s_intshifts = slice(intshifts,i,intshifts.size()-1);
-		tmp.insert(tmp.begin(), 0.0);
-		for (int j = it; j < costs.shifts.size(); j++){
-			tmp.push_back(tmpvals_d[j-1][i]);
-		}
-		tmp = raiseToPow(tmp, 1.0/int_p.p_a[it-1]);
-		tmp = raiseToPow(interpolate(tshifts, tmp, s_intshifts, dir), int_p.p_a[it-1]);
-		int_vars.rs_variances[i].insert(itt, tmp.begin(), tmp.end());
-		i++;
-		if ( intshifts[i] > costs.shifts[it-1]){
-			it++;
-		}
-	} */
-
-	//new
-        /*QDPIO::cout << "Interpolating horizontally" << std::endl;
-        int i = 0;
-        int it = 1;
-        dir = "horizontal";
-	bool isin;
-	while ( it < costs.shifts.size()-1){
-                std::vector<double>::iterator itt = int_vars.rs_variances[i].begin();
-                itt += i;
-                std::vector<double> tmp;
-                std::vector<double> tshifts = slice(costs.shifts,it,costs.shifts.size()-1);
-		isin = float_ismember(tshifts, intshifts[i]);
-		if (!isin){
-			tmp.insert(tmp.begin(), 0.0);
-		}		
-                for (int j = it; j < costs.shifts.size(); j++){
-                        tmp.push_back(tmpvals_d[j-1][i]);
-                }
-		
-		if(!isin){
-                tshifts.insert(tshifts.begin(), intshifts[i]);
-		}
-                std::vector<double> s_intshifts = slice(intshifts,i,intshifts.size()-1);
-                //tmp.insert(tmp.begin(), 0.0);
-                //for (int j = it; j < costs.shifts.size(); j++){
-                //        tmp.push_back(tmpvals_d[j-1][i]);
-                //}
-                tmp = raiseToPow(tmp, 1.0/int_p.p_a[it-1]);
-                tmp = raiseToPow(interpolate(tshifts, tmp, s_intshifts, dir), int_p.p_a[it-1]);
-		//old
-                //int_vars.rs_variances[i].insert(itt, tmp.begin(), tmp.end());
-                //new
-                int_vars.rs_variances[i].insert(itt, tmp.begin(), tmp.end());
-                i++;
-                if ( intshifts[i] > costs.shifts[it]){
-                        it++;
-                }
-        }
-	
-
-	//the last section
-	QDPIO::cout << "Interpolating last shift partition starting with row " << i <<  std::endl;
-	
-	//orginal
-	//it--;
-	
-	//new, no decrementing it
-	
-	//old
-	//int j = costs.shifts.size()-2;
-	//new
-	int j = it-1;
-	QDPIO::cout << "It after horizontal is " << it << std::endl;
-	while (i < intshifts.size()-1) {
-	QDPIO::cout << "On iteration " << i << std::endl;
-	std::vector<double>::iterator itt = int_vars.rs_variances[i].begin();
-	itt += i;
-	std::vector<double> tmp;
-	QDPIO::cout << "Preparing variances " << std::endl;
-	tmp.push_back(tmpvals_d[j][i]);
-	tmp.insert(tmp.begin(), 0);
-	QDPIO::cout << "Preparing shifts " << std::endl;
-        std::vector<double> tshifts = slice(costs.shifts,it,costs.shifts.size()-1);
-        tshifts.insert(tshifts.begin(), intshifts[i]);
-	QDPIO::cout << "Preparing interpolation shifts " << std::endl;
-        std::vector<double> s_intshifts = slice(intshifts,i,intshifts.size()-1);
-        QDPIO::cout << "Size of shifts : " << tshifts.size() << std::endl;
-	QDPIO::cout << "Size of interpolating shifts " << s_intshifts.size() << std::endl;
-        QDPIO::cout << "Size of variancances : " << tmp.size() << std::endl;
-	tmp = raiseToPow(tmp,1.0/int_p.p_a[it-1]);
-	QDPIO::cout << "Interpolating the variances " << std::endl;
-	tmp = raiseToPow(interpolate(tshifts, tmp, s_intshifts, dir), int_p.p_a[it-1]);
-	QDPIO::cout << "Size of interpolated variances : " << tmp.size() << std::endl;
-	QDPIO::cout << "Inserting the variances in the final array " << std::endl;
-	//old
-	//int_vars.rs_variances[i].insert(itt, tmp.begin(), tmp.end());
-	//new
-	int_vars.rs_variances[i].insert(itt, tmp.begin(), tmp.end());
-        i++;
-	//itt++;
-	} */
 
 	QDPIO::cout << "Multiplying by the shifts..." << std::endl;
 	double sd;
 	for (int i = 0; i < intshifts.size(); ++i){
 		for (int j = i; j < intshifts.size(); ++j){
 		sd = intshifts[j]-intshifts[i];
-		int_vars.rs_variances[i][j] = std::pow(sd,2.0) * int_vars.rs_variances[i][j];
+		int_vars.rrs_variances[i][j] = std::pow(sd,4.0) * int_vars.rrs_variances[i][j];
+		int_vars.rr_variances[i][j] = std::pow(sd,2.0) * int_vars.rr_variances[i][j];
 		}
 	}
 
@@ -996,35 +785,38 @@ CostHolder_t interpolate_variances(const CostHolder_t& costs, multi1d<double>& d
 
 std::vector<MinCosts_t> getMinShifts(const CostHolder_t& costs, multi1d<double>& dels, multi1d<int>& num_bcshifts, const bool& use_mg, int& disp, int& gamma)
 {
-	//QDPIO::cout << "In getMinShifts" << std::endl;
 	std::vector<MinCosts_t> stats;
-	//bleh, hardcoding 6 for now;
+	QDPIO::cout << "In recursive getMinShifts" << std::endl;
+	//bleh, hardcoding 6 for now as nothing more is gained after 6 shifts;
+	//this needs to change because this is likely dependedent on lattice size
+	//but to find minimum cost all shifts have to be iterated through
+	//and you have to know the number of shifts....
 	stats.resize(6);
 	
 	CostHolder_t int_costs;
 	int_costs = interpolate_variances(costs, dels, num_bcshifts, use_mg);
 
 	for (int i = 0; i < int_costs.shifts.size(); i++){
-	QDPIO::cout << "Printing row " << i << std::endl;
+	QDPIO::cout << "Printing row " << i << " of triple inverse term" << std::endl;
 	for (int j = i; j < int_costs.shifts.size(); j++){
-	QDPIO::cout << int_costs.rs_variances[i][j] << std::endl;
+	QDPIO::cout << int_costs.rrs_variances[i][j] << std::endl;
 	}
 	}
+
+	for (int i = 0; i < int_costs.shifts.size(); i++){
+	QDPIO::cout << " Printing row " << i << " of double inverse term" << std::endl;
+	for (int j = i; j < int_costs.shifts.size(); j++){
+	QDPIO::cout << int_costs.rr_variances[i][j] << std::endl;
+	}
+	}
+	
 	QDPIO::cout << "Finding the minimum shifts for Displacement = " << disp << " and Gamma = " << gamma << std::endl; 
 	for (int i = 0; i < 6; i++){
 		stats[i] = findMinShifts(i+1,int_costs);
 	}
 	return stats; 		
 }
-/* std::vector<int> findGammaDisp(const CostHolder& costs){
 
-	std::vector<int> gk;
-	gk.resize(2);
-	return gk;
-
-} */
-
-
-} //namespace
+} //RecInterp namespace
 
 } //Chroma namespace
