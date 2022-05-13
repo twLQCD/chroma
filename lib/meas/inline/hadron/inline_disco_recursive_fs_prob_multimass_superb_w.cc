@@ -2586,7 +2586,7 @@ namespace Chroma
 	  DComplex cmplxshifts;
 	  cmplxshifts = cmplx(params.param.shifts[level_switch+1]-params.param.shifts[level_switch],0.0);
 	  cmplxshifts = cmplxshifts * cmplxshifts;
-	  do_disco(db, v_psi[0], v_psi[1], ft, params.param.use_ferm_state_links ? state->getLinks() : u, params.param.max_path_length, cmplxshifts, dk);
+	  do_disco(db, v_psi[1], v_psi[0], ft, params.param.use_ferm_state_links ? state->getLinks() : u, params.param.max_path_length, cmplxshifts, dk);
           swatch_dots.stop();
           QDPIO::cout << "Computing inner products of triple product term" << swatch_dots.getTimeInSeconds() << " secs" << std::endl;
 
