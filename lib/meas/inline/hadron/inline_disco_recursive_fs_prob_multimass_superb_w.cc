@@ -2027,13 +2027,13 @@ namespace Chroma
 		  for (int idk = 0; idk < dk; idk++){
 		    for (int col = 0; col < Nc * Ns; col++){
 		      if (col == 2 || col == 3 || col == 6 || col == 7 || col == 10 || col == 11){
-			 *v_eta[idk * Nc * Ns + col] = NOne * (Gamma(15) * *v_psi2[m1][idk * Nc * Ns + col]);
+			 *v_eta[idk * Nc * Ns + col] = NOne * (Gamma(15) * *v_psi2[m2][idk * Nc * Ns + col]);
 		      }else{
-			 *v_eta[idk * Nc * Ns + col] =  (Gamma(15) * *v_psi2[m1][idk * Nc * Ns + col]); 
+			 *v_eta[idk * Nc * Ns + col] =  (Gamma(15) * *v_psi2[m2][idk * Nc * Ns + col]); 
 		     }
 		} //col
 	      } //idk
-		  do_disco(dbrrs[m1][m2], v_eta, v_psi[m2], ft, param.use_ferm_state_links ? state->getLinks() : u, param.max_path_length);
+		  do_disco(dbrrs[m1][m2], v_eta, v_psi[m1], ft, param.use_ferm_state_links ? state->getLinks() : u, param.max_path_length);
 	    } //m2   
 
 	    } // m1
