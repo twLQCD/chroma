@@ -2611,12 +2611,13 @@ for (int level = 0; level < num_levels; level++){
       }
      }
 
-    //add all the variances and all the traces
-    //need to figure this out...
-    for (int level = 0; level < num_levels; level++){
-      do_update(dbs.total_avg, dbs.total_var, dbs.levels_avg[level], level == 0);
-    }
-
+    
+      //add the traces of the levels
+      for (int level = 0; level < num_levels; level++){
+        for(std::map< KeyOperator_t, ValOperator_t >::iterator it=dbs.total_avg.begin();it != dbs.total_avg.end(); it++){
+            it->second.op += dbs.levels_avg[level][it->first].op;
+        }
+      }
 
 
       // Add the deterministic part to the traces
@@ -2631,7 +2632,7 @@ for (int level = 0; level < num_levels; level++){
       // write out the results
       
       // DB storage         
-/*      BinaryStoreDB<SerialDBKey<KeyOperator_t>,SerialDBData<ValOperator_t> > qdp_db;
+      BinaryStoreDB<SerialDBKey<KeyOperator_t>,SerialDBData<ValOperator_t> > qdp_db;
       
       // Open the file, and write the meta-data and the binary for this operator
       {
@@ -2669,7 +2670,7 @@ for (int level = 0; level < num_levels; level++){
           val.data().op[i] = it->second.op[i];
 	qdp_db.insert(key,val);
       }
-*/
+
 
       pop(xml_out);  // close last tag
 
