@@ -2643,7 +2643,7 @@ for (int level = 0; level < num_levels; level++){
 	write(file_xml, "lattSize", QDP::Layout::lattSize());
 	write(file_xml, "decay_dir", decay_dir);
 	write(file_xml, "Params", params.param);
-	//write(file_xml, "Config_info", gauge_xml);
+	write(file_xml, "Config_info", gauge_xml);
 	pop(file_xml);
 
 	std::string file_str(file_xml.str());
