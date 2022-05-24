@@ -677,7 +677,7 @@ namespace Chroma
 	file_trace << num_levels << '\n';
 	for (auto i : count){ file_trace << i << '\n'; }
 	for (auto i : level_cost){ file_trace << i << '\n'; }
-	for (int i = 0; i < shifts.size(); i++) { file_trace << shifts[i] << std::endl; }
+	for (int i = 0; i < shifts.size(); i++) { file_trace << std::setprecision(std::numeric_limits<double>::max_digits10) << shifts[i] << std::endl; }
 	std::map< KeyOperator_t, ValOperator_t >::const_iterator itv = db_var.begin();
 	for (std::map< KeyOperator_t, ValOperator_t >::const_iterator it=db_trace.begin(); it != db_trace.end(); it++) {
 	    file_trace << it->first << '\n';
