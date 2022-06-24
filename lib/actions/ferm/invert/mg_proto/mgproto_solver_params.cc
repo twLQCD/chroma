@@ -90,6 +90,7 @@ MGProtoSolverParams::MGProtoSolverParams(XMLReader& xml, const std::string& path
 	read( paramtop, "Blocking", Blocking, MGLevels-1);
 
 	read( paramtop, "NullVecs", NullVecs, MGLevels-1);
+	read( paramtop, "NullVecsKeep", NullVecsKeep, MGLevels-1);
 	read( paramtop, "NullSolverMaxIters", NullSolverMaxIters, MGLevels-1);
 	read( paramtop, "NullSolverNKrylov", NullSolverNKrylov, MGLevels-1, 0);
 	read( paramtop, "NullSolverRsdTarget", NullSolverRsdTarget, MGLevels-1);
@@ -149,6 +150,7 @@ void write(XMLWriter& xml, const std::string& path, const MGProtoSolverParams& p
 	write(xml, "MGLevels", p.MGLevels);
 	write(xml, "Blocking", p.Blocking);
 	write(xml, "NullVecs", p.NullVecs);
+	write(xml, "NullVecsKeep", p.NullVecsKeep);
 	write(xml, "NullSolverMaxIters", p.NullSolverMaxIters);
 	write(xml, "NullSolverNKrylov", p.NullSolverNKrylov);
 	write(xml, "NullSolverRsdTarget", p.NullSolverRsdTarget);

@@ -357,11 +357,14 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 	int n_levels = params.MGLevels;
 	level_params.n_levels = n_levels;
 	level_params.n_vecs.resize(n_levels-1);
+	level_params.n_vecs_keep.resize(n_levels-1);
 	level_params.null_solver_params.resize(n_levels-1);
 	for(int l=0; l < n_levels-1;++l) {
 		QDPIO::cout << "Level L=" << l << " Null Vecs=" << params.NullVecs[l] << std::endl;
 
 		level_params.n_vecs[l] = params.NullVecs[l];
+		//new addition for lsvd
+		level_params.n_vecs_keep[l] = params.NullVecsKeep[l];
 		level_params.null_solver_params[l].MaxIter=params.NullSolverMaxIters[l];
 		level_params.null_solver_params[l].NKrylov=params.NullSolverNKrylov[l];
 		level_params.null_solver_params[l].RsdTarget=toDouble(params.NullSolverRsdTarget[l]);
