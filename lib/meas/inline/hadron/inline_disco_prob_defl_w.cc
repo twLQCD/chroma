@@ -653,7 +653,8 @@ namespace Chroma
 
       Handle< SystemSolver<LatticeFermion> > PP = S_f->qprop(state,
 							       params.param.prop.invParam);
-      Handle< Projector<LatticeFermion> > proj = S_f->projector(state, params.param.projParam); 
+      //removed the deflation for now
+      //Handle< Projector<LatticeFermion> > proj = S_f->projector(state, params.param.projParam); 
 
       // Initialize the slow Fourier transform phases
       int decay_dir           = Nd-1 ; // hadamard needs this for now
@@ -676,7 +677,8 @@ namespace Chroma
       StopWatch swatch_det;
       swatch_det.start();
       std::map< KeyOperator_t, ValOperator_t > dbdet;
-      for (int k = 0 ; k < proj->rank() ; k++) {
+      //I have removed the deflation for now to test the new MG
+      /*for (int k = 0 ; k < proj->rank() ; k++) {
         // collect dk pairs of vectors
         LatticeFermion vi_lambda, // = v[i]/(u[i]'*Dslash*v[i])
                        ui, vi;     // = u[i], v[i]
@@ -693,7 +695,7 @@ namespace Chroma
         else
           do_disco(dbdet, vi_lambda, ui, ft, u, 
                    d, params.param.max_path_length);
-      }
+      } */
       swatch_det.stop();
       QDPIO::cout << "Projector contribution computed in time= " << swatch_det.getTimeInSeconds() << " secs" << std::endl;
  
@@ -742,9 +744,10 @@ namespace Chroma
           }
 
           (*PP)(v_psi, std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
-          proj->VUAObliqueProjector(v_q, std::vector<std::shared_ptr<const LatticeFermion>>(v_psi.begin(), v_psi.end()));
+          //proj->VUAObliqueProjector(v_q, std::vector<std::shared_ptr<const LatticeFermion>>(v_psi.begin(), v_psi.end()));
           for (int i=0; i<v_psi.size(); ++i)
-            *v_q[i] = *v_psi[i] - *v_q[i]; // q <= (I - V*inv(U'*AV*)*U'*A)*quark_soln
+            //*v_q[i] = *v_psi[i] - *v_q[i]; // q <= (I - V*inv(U'*AV*)*U'*A)*quark_soln
+            *v_q[i] = *v_psi[i];
 
           // here the recursive call goes to compute the loops
           // result is ADDED to db
