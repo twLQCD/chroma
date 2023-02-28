@@ -344,7 +344,8 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
   (mg_levels->fine_level).info = std::make_shared<LatticeInfo>( latdims, 4,3,*new NodeInfo());
 
   	//if doing the partitioned svd, make sure that the number of near null vectors can be evenly
-	//divided by the number of partitions. Else, abort
+	//divided by the number of partitions and check the number of near null vectors to avoid rank
+	//deficiency if using least squares. If violated, abort.
 	for (int ilvl = 0; ilvl < params.MGLevels-1; ++ilvl){
 	   if (params.do_psvd[ilvl]){
 		if (params.NullVecs[ilvl] % params.NumPartitions[ilvl] != 0){
@@ -353,10 +354,9 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 		}
 	    }
 	   if (params.do_lsq[ilvl]) {
-		if (params.NullVecs[ilvl+1] <= 24 ) {
-			QDPIO::cout << "The number of near null vectors on level " << ilvl + 1 << " must be greater than 24 to avoid rank deficiency in the least squares interpolation. " std::endl;
+		if (params.NullVecs[ilvl] <= (int)(std::pow(2,ilvl)*12))
+			QDPIO::cout << "The number of near null vectors on level " << ilvl << " must be greater than " << (int)(std::pow(2,ilvl)*12) << "  to avoid rank deficiency in the least squares interpolation. " std::endl;
 			QDPIO::abort(1);
-		}
 	   }
 	} //ilvl
 
