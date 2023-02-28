@@ -352,6 +352,12 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 			QDP_abort(1);
 		}
 	    }
+	   if (params.do_lsq[ilvl]) {
+		if (params.NullVecs[ilvl+1] <= 12 ) {
+			QDPIO::cout << "The number of near null vectors on level " << ilvl + 1 << " must be greater than 12 " std::endl;
+			QDPIO::abort(1);
+		}
+	   }
 	} //ilvl
 
 	// First make M
@@ -381,6 +387,7 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 		level_params.n_vecs_keep[l] = params.NullVecsKeep[l];
 		level_params.do_psvd[l] = params.do_psvd[l];
 		level_params.do_lsvd[l] = params.do_lsvd[l];
+		level_params.do_lsq[l]  = params.do_lsq[l];
 		level_params.n_partitions[l] = params.NumPartitions[l];
 		level_params.null_solver_params[l].MaxIter=params.NullSolverMaxIters[l];
 		level_params.null_solver_params[l].NKrylov=params.NullSolverNKrylov[l];
