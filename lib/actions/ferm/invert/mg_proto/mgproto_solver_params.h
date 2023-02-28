@@ -33,7 +33,10 @@ public:
 	int MGLevels;
 	multi1d< multi1d<int> > Blocking;
 	multi1d< int > NullVecs;
+	multi1d< bool > do_psvd;
+	multi1d< bool > do_lsvd;
 	multi1d< int > NullVecsKeep;
+	multi1d< int > NumPartitions;
 	multi1d< int > NullSolverMaxIters;
 	multi1d< int > NullSolverNKrylov;
 	multi1d< Double > NullSolverRsdTarget;

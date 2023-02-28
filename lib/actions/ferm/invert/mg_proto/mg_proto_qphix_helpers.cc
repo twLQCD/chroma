@@ -343,6 +343,17 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 
   (mg_levels->fine_level).info = std::make_shared<LatticeInfo>( latdims, 4,3,*new NodeInfo());
 
+  	//if doing the partitioned svd, make sure that the number of near null vectors can be evenly
+	//divided by the number of partitions. Else, abort
+	for (int ilvl = 0; ilvl < params.MGLevels-1; ++ilvl){
+	   if (params.do_psvd[ilvl]){
+		if (params.NullVecs[ilvl] % params.NumPartitions[ilvl] != 0){
+			QDPIO::cout << "Nullvecs / NumPartitions is not an integer on MG level " << ilvl << ". Aborting." << std::endl;
+			QDP_abort(1);
+		}
+	    }
+	} //ilvl
+
 	// First make M
 	QDPIO::cout << "Creating M..." ;
 	shared_ptr<typename PrecT::LinOpT> M=createFineLinOpT<typename PrecT::LinOpT>( params, u, *((mg_levels->fine_level).info) );
@@ -359,12 +370,18 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 	level_params.n_vecs.resize(n_levels-1);
 	level_params.n_vecs_keep.resize(n_levels-1);
 	level_params.null_solver_params.resize(n_levels-1);
+	level_params.do_psvd.resize(n_levels-1);
+	level_params.do_lsvd.resize(n_levels-1);
+	level_params.n_partitions.resize(n_levels-1);
 	for(int l=0; l < n_levels-1;++l) {
 		QDPIO::cout << "Level L=" << l << " Null Vecs=" << params.NullVecs[l] << std::endl;
 
 		level_params.n_vecs[l] = params.NullVecs[l];
 		//new addition for lsvd
 		level_params.n_vecs_keep[l] = params.NullVecsKeep[l];
+		level_params.do_psvd[l] = params.do_psvd[l];
+		level_params.do_lsvd[l] = params.do_lsvd[l];
+		level_params.n_partitions[l] = params.NumPartitions[l];
 		level_params.null_solver_params[l].MaxIter=params.NullSolverMaxIters[l];
 		level_params.null_solver_params[l].NKrylov=params.NullSolverNKrylov[l];
 		level_params.null_solver_params[l].RsdTarget=toDouble(params.NullSolverRsdTarget[l]);
