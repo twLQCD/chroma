@@ -353,8 +353,8 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 		}
 	    }
 	   if (params.do_lsq[ilvl]) {
-		if (params.NullVecs[ilvl+1] <= 12 ) {
-			QDPIO::cout << "The number of near null vectors on level " << ilvl + 1 << " must be greater than 12 " std::endl;
+		if (params.NullVecs[ilvl+1] <= 24 ) {
+			QDPIO::cout << "The number of near null vectors on level " << ilvl + 1 << " must be greater than 24 to avoid rank deficiency in the least squares interpolation. " std::endl;
 			QDPIO::abort(1);
 		}
 	   }
