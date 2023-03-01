@@ -354,9 +354,10 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 		}
 	    }
 	   if (params.do_lsq[ilvl]) {
-		if (params.NullVecs[ilvl] <= (int)(std::pow(2,ilvl)*12))
-			QDPIO::cout << "The number of near null vectors on level " << ilvl << " must be greater than " << (int)(std::pow(2,ilvl)*12) << "  to avoid rank deficiency in the least squares interpolation. " std::endl;
-			QDPIO::abort(1);
+		if (params.NullVecs[ilvl] <= (int)(std::pow(2,ilvl)*12)) {
+			QDPIO::cout << "The number of near null vectors on level " << ilvl << " must be greater than " << (int)(std::pow(2,ilvl)*12) << "  to avoid rank deficiency in the least squares interpolation. "  << std::endl;
+			QDP_abort(1);
+		}
 	   }
 	} //ilvl
 
@@ -378,6 +379,7 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 	level_params.null_solver_params.resize(n_levels-1);
 	level_params.do_psvd.resize(n_levels-1);
 	level_params.do_lsvd.resize(n_levels-1);
+	level_params.do_lsq.resize(n_levels-1);
 	level_params.n_partitions.resize(n_levels-1);
 	for(int l=0; l < n_levels-1;++l) {
 		QDPIO::cout << "Level L=" << l << " Null Vecs=" << params.NullVecs[l] << std::endl;
