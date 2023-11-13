@@ -319,7 +319,7 @@ namespace Chroma
           LatticeComplex pcc = p[m]*cc;
           for (int t(0); t < Nt; t++) {
 	      foo(m,t)[g] = sum(pcc,p.getSet()[t]);
-	      if (g == 0) QDPIO::cout<<"Trace t="<< t << " path=" << path << " val= " << foo(m,t)[g] << std::endl;
+	      //if (g == 0) QDPIO::cout<<"Trace t="<< t << " path=" << path << " val= " << foo(m,t)[g] << std::endl;
           }
 	}
       }
@@ -718,16 +718,22 @@ namespace Chroma
 	vec = cmplx(cos(theta),sin(theta));
 
         // All the loops
-        const int N_rhs = (params.param.max_rhs + Ns * Nc - 1) / Ns / Nc;
-        for (int k1 = 0, dk = std::min(Nsrc, N_rhs); k1 < Nsrc ; k1 += dk, dk = std::min(Nsrc - k1, N_rhs)) {
+        // since we are testing the sovler, lets get rid of the block rhs
+        //const int N_rhs = (params.param.max_rhs + Ns * Nc - 1) / Ns / Nc;
+        //for (int k1 = 0, dk = std::min(Nsrc, N_rhs); k1 < Nsrc ; k1 += dk, dk = std::min(Nsrc - k1, N_rhs)) {
           // collect (Ns*Nc*dk) pairs of vectors
-          std::vector<std::shared_ptr<LatticeFermion>> v_chi(Ns * Nc * dk), v_psi(Ns * Nc * dk), v_q(Ns * Nc * dk);
-          for (int col=0; col<v_chi.size(); col++) v_chi[col].reset(new LatticeFermion);
-          for (int col=0; col<v_psi.size(); col++) v_psi[col].reset(new LatticeFermion);
-          for (int col=0; col<v_q.size(); col++) v_q[col].reset(new LatticeFermion);
-          for (int i_v = 0 ; i_v < dk ; i_v++) {
+          //std::vector<std::shared_ptr<LatticeFermion>> v_chi(Ns * Nc * dk), v_psi(Ns * Nc * dk), v_q(Ns * Nc * dk);
+	  std::vector<std::shared_ptr<LatticeFermion>> v_chi(1), v_psi(1), v_q(1);
+          //for (int col=0; col<v_chi.size(); col++) v_chi[col].reset(new LatticeFermion);
+          //for (int col=0; col<v_psi.size(); col++) v_psi[col].reset(new LatticeFermion);
+          //for (int col=0; col<v_q.size(); col++) v_q[col].reset(new LatticeFermion);
+          v_chi[0].reset(new LatticeFermion);
+	  v_psi[0].reset(new LatticeFermion);
+	  v_q[0].reset(new LatticeFermion);
+          //for (int i_v = 0 ; i_v < dk ; i_v++) {
             LatticeInteger hh ; 
-            coloring->getVec(hh, k1 + i_v);
+            //coloring->getVec(hh, k1 + i_v);
+            coloring->getVec(hh,0);
             LatticeComplex rv = vec*hh;
             for(int color_source(0);color_source<Nc;color_source++){
               LatticeColorVector vec_srce = zero ;
@@ -736,18 +742,18 @@ namespace Chroma
               for(int spin_source=0; spin_source < Ns; ++spin_source){
                 // Insert a ColorVector into spin index spin_source
                 // This only overwrites sections, so need to initialize first
-                *v_chi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
-                CvToFerm(vec_srce, *v_chi[i_v * Ns * Nc + color_source * Ns + spin_source], spin_source);
-                *v_psi[i_v * Ns * Nc + color_source * Ns + spin_source]  = zero;
-              } 
-            }
-          }
+                *v_chi[0]  = zero;
+                CvToFerm(vec_srce, *v_chi[0], spin_source);
+                *v_psi[0]  = zero;
+              } //spin_source
+            } //color_source
+          //} //iv
 
           (*PP)(v_psi, std::vector<std::shared_ptr<const LatticeFermion>>(v_chi.begin(), v_chi.end()));
           //proj->VUAObliqueProjector(v_q, std::vector<std::shared_ptr<const LatticeFermion>>(v_psi.begin(), v_psi.end()));
-          for (int i=0; i<v_psi.size(); ++i)
+          //for (int i=0; i<v_psi.size(); ++i)
             //*v_q[i] = *v_psi[i] - *v_q[i]; // q <= (I - V*inv(U'*AV*)*U'*A)*quark_soln
-            *v_q[i] = *v_psi[i];
+          *v_q[0] = *v_psi[0];
 
           // here the recursive call goes to compute the loops
           // result is ADDED to db
@@ -764,7 +770,7 @@ namespace Chroma
            }
            swatch_dots.stop();
            QDPIO::cout << "Computing inner products " << swatch_dots.getTimeInSeconds() << " secs" << std::endl;
-        } // for k1
+        //} // for k1
 
         // Update dbmean, dbvar
         do_update(dbmean, dbvar, db, noise == 0);
