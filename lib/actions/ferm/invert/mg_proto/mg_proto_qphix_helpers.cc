@@ -376,6 +376,7 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 	level_params.n_levels = n_levels;
 	level_params.n_vecs.resize(n_levels-1);
 	level_params.n_vecs_keep.resize(n_levels-1);
+	level_params.n_streams.resize(n_levels-1);
 	level_params.null_solver_params.resize(n_levels-1);
 	level_params.do_psvd.resize(n_levels-1);
 	level_params.do_lsvd.resize(n_levels-1);
@@ -387,6 +388,7 @@ createMGPreconditionerT( const MGProtoSolverParams& params, const multi1d<Lattic
 		level_params.n_vecs[l] = params.NullVecs[l];
 		//new addition for lsvd
 		level_params.n_vecs_keep[l] = params.NullVecsKeep[l];
+		level_params.n_streams[l] = params.n_streams[l];
 		level_params.do_psvd[l] = params.do_psvd[l];
 		level_params.do_lsvd[l] = params.do_lsvd[l];
 		level_params.do_lsq[l]  = params.do_lsq[l];

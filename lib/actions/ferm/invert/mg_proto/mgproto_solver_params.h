@@ -37,6 +37,7 @@ public:
 	multi1d< bool > do_lsvd;
 	multi1d< bool > do_lsq;
 	multi1d< int > NullVecsKeep;
+	multi1d< int > n_streams;
 	multi1d< int > NumPartitions;
 	multi1d< int > NullSolverMaxIters;
 	multi1d< int > NullSolverNKrylov;

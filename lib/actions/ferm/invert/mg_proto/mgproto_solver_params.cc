@@ -94,6 +94,7 @@ MGProtoSolverParams::MGProtoSolverParams(XMLReader& xml, const std::string& path
 	read( paramtop, "do_local_svd", do_lsvd, MGLevels-1);
 	read( paramtop, "do_least_squares", do_lsq, MGLevels-1);
 	read( paramtop, "NullVecsKeep", NullVecsKeep, MGLevels-1);
+	read( paramtop, "NumStreams", n_streams, MGLevels-1);
 	read( paramtop, "NumPartitions", NumPartitions, MGLevels-1);
 	read( paramtop, "NullSolverMaxIters", NullSolverMaxIters, MGLevels-1);
 	read( paramtop, "NullSolverNKrylov", NullSolverNKrylov, MGLevels-1, 0);
