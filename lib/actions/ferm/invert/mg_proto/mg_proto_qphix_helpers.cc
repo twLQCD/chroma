@@ -218,7 +218,7 @@ modifyMGPreconditionerT(shared_ptr<PrecT>& mg_ptr, const MGProtoSolverParams& pa
 	//now do it for the rest of the levels
 	for (int nl = 1; nl < mg_ptr->mg_levels->coarse_levels.size(); ++nl){
 		(mg_ptr->mg_levels->coarse_levels[nl-1]).M->generateCoarse( (mg_ptr->mg_levels->coarse_levels[nl-1]).blocklist, (mg_ptr->mg_levels->coarse_levels[nl-1]).null_vecs,
-										*((mg_ptr->mg_levels->coarse_levels[nl].gauge)));
+										*((mg_ptr->mg_levels->coarse_levels[nl].gauge)), 0.0);
 		MG::ModifyCoarseOp(mg_ptr->mg_levels->coarse_levels[nl]);
 	}
 
